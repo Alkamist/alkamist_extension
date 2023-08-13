@@ -35,10 +35,6 @@ Track_Manager :: struct {
     groups: [dynamic]^Track_Group,
 }
 
-make_track_manager :: proc(project: ^reaper.ReaProject) -> Track_Manager {
-    return {project = project}
-}
-
 destroy_track_manager :: proc(manager: ^Track_Manager) {
     delete(manager.selected_tracks)
 

@@ -7,6 +7,8 @@ import "../reaper"
 import "track_manager"
 
 reaper_extension_main :: proc() {
+    track_manager.init()
+
     reaper.add_action("Alkamist: Track manager", "ALKAMIST_TRACK_MANAGER", track_manager.run)
 
     reaper.add_timer(proc() {
