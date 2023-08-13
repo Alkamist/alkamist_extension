@@ -4,12 +4,12 @@ import "core:c"
 import "core:runtime"
 import "../gui"
 import "../reaper"
-import "test_action"
+import "track_manager"
 
 // odin build alkamist_extension -build-mode:dll -out:reaper_alkamist.dll
 
 reaper_extension_main :: proc() {
-    reaper.add_action("Alkamist Test Action", "ALKAMIST_TEST_ACTION", test_action.run)
+    reaper.add_action("Alkamist: Track manager", "ALKAMIST_TRACK_MANAGER", track_manager.run)
 
     reaper.add_timer(proc() {
         gui.update()
