@@ -1,13 +1,57 @@
 package test_action
 
+import "core:fmt"
 import "core:slice"
 import "../../gui"
 import "../../gui/color"
 import "../../gui/widgets"
 import "../../reaper"
 
-SPACING :: Vec2{5, 5}
-PADDING :: Vec2{5, 5}
+
+Vec2 :: gui.Vec2
+Color :: gui.Color
+
+SPACING :: Vec2{6, 6}
+PADDING :: Vec2{6, 6}
+
+GROUP_HEIGHT :: 24.0
+BUTTON_SIZE :: Vec2{14, 14}
+
+consola := gui.Font{"Consola", #load("../consola.ttf")}
+window: gui.Window
+track_manager: Track_Manager
+
+on_frame :: proc() {
+    update_track_manager(&track_manager)
+}
+
+init :: proc() {
+    gui.init_window(
+        &window,
+        title = "Track Manager",
+        position = {200, 200},
+        background_color = _color(0.2),
+        default_font = &consola,
+        child_kind = .Transient,
+        on_frame = on_frame,
+    )
+
+    _add_new_track_group(&track_manager, "Verse")
+    _add_new_track_group(&track_manager, "Chorus")
+    _add_new_track_group(&track_manager, "Vocals")
+    _add_new_track_group(&track_manager, "Drums")
+    _add_new_track_group(&track_manager, "Guitars")
+}
+
+run :: proc() {
+    if gui.window_is_open(&window) {
+        gui.close_window()
+        return
+    }
+
+    gui.set_window_parent(&window, reaper.window_handle())
+    gui.open_window(&window)
+}
 
 Track_Group :: struct {
     track_manager: ^Track_Manager,
@@ -20,14 +64,14 @@ Track_Group :: struct {
     add_selection_button: widgets.Button,
     remove_selection_button: widgets.Button,
 
-    _place_x: f32,
+    _x_placement: f32,
 }
 
-destroy_track_group :: proc(group: ^Track_Group) {
-    delete(group.name)
-    delete(group.tracks)
-    free(group)
-}
+// destroy_track_group :: proc(group: ^Track_Group) {
+//     delete(group.name)
+//     delete(group.tracks)
+//     free(group)
+// }
 
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
@@ -45,8 +89,6 @@ destroy_track_manager :: proc(manager: ^Track_Manager) {
 }
 
 update_track_manager :: proc(manager: ^Track_Manager) {
-    GROUP_HEIGHT :: 24.0
-
     reaper.PreventUIRefresh(1)
 
     _update_selected_tracks(manager)
@@ -66,6 +108,8 @@ update_track_manager :: proc(manager: ^Track_Manager) {
 
     reaper.PreventUIRefresh(-1)
 }
+
+
 
 _update_track_visibility :: proc(manager: ^Track_Manager) {
     tracks: [dynamic]^reaper.MediaTrack
@@ -98,11 +142,20 @@ _update_track_visibility :: proc(manager: ^Track_Manager) {
     }
 }
 
+_update_group_name :: proc(group: ^Track_Group) {
+    ascender, descender, line_height := gui.text_metrics()
+    y := (group.size.y - line_height - descender) * 0.5
+    gui.fill_text_line(group.name, {group._x_placement, y}, color = _color(0.98))
+}
+
 _update_visibility_button :: proc(group: ^Track_Group) {
     button := &group.visibility_button
 
-    button.position = {group._place_x, 0}
-    button.size = {group.size.y, group.size.y}
+    button.size = BUTTON_SIZE
+    button.position = {
+        group._x_placement,
+        (group.size.y - button.size.y) * 0.5,
+    }
 
     widgets.update_button(button)
 
@@ -112,20 +165,29 @@ _update_visibility_button :: proc(group: ^Track_Group) {
 
     gui.begin_path()
     gui.rounded_rect(button.position, button.size, 3)
-    gui.fill_path(color.rgb(31, 32, 34))
+    gui.fill_path(_color(0.1))
 
     if group.is_visible {
         gui.begin_path()
-        gui.rect(button.position + {3, 3}, button.size - {6, 6})
-        gui.fill_path(color.rgb(70, 70, 70))
+        gui.rect(button.position + {4, 4}, button.size - {8, 8})
+        if button.is_down {
+            gui.fill_path(_color(0.5))
+        } else if gui.is_hovered(button) {
+            gui.fill_path(_color(0.9))
+        } else {
+            gui.fill_path(_color(0.7))
+        }
     }
 }
 
 _update_add_selection_button :: proc(group: ^Track_Group) {
     button := &group.add_selection_button
 
-    button.size = {group.size.y, group.size.y}
-    button.position = {group._place_x - button.size.x, 0}
+    button.size = BUTTON_SIZE
+    button.position = {
+        group._x_placement - button.size.x,
+        (group.size.y - button.size.y) * 0.5,
+    }
 
     widgets.update_button(button)
 
@@ -133,16 +195,38 @@ _update_add_selection_button :: proc(group: ^Track_Group) {
         _add_selected_tracks_to_group(group)
     }
 
-    gui.begin_path()
-    gui.rect(button.position + {3, 3}, button.size - {6, 6})
-    gui.fill_path(color.rgb(0, 255, 0))
+    {
+        gui.offset({0.5, 0.5})
+        gui.begin_path()
+
+        p := button.position + {0, button.size.y * 0.5}
+        gui.move_to(p)
+        p += {button.size.x, 0}
+        gui.line_to(p)
+
+        p = button.position + {button.size.x * 0.5, 0}
+        gui.move_to(p)
+        p += {0, button.size.y}
+        gui.line_to(p)
+
+        if button.is_down {
+            gui.stroke_path(_color(0.5), 1)
+        } else if gui.is_hovered(button) {
+            gui.stroke_path(_color(0.9), 1)
+        } else {
+            gui.stroke_path(_color(0.7), 1)
+        }
+    }
 }
 
 _update_remove_selection_button :: proc(group: ^Track_Group) {
     button := &group.remove_selection_button
 
-    button.size = {group.size.y, group.size.y}
-    button.position = {group._place_x - button.size.x, 0}
+    button.size = BUTTON_SIZE
+    button.position = {
+        group._x_placement - button.size.x,
+        (group.size.y - button.size.y) * 0.5,
+    }
 
     widgets.update_button(button)
 
@@ -150,35 +234,52 @@ _update_remove_selection_button :: proc(group: ^Track_Group) {
         _remove_selected_tracks_from_group(group)
     }
 
-    gui.begin_path()
-    gui.rect(button.position + {3, 3}, button.size - {6, 6})
-    gui.fill_path(color.rgb(255, 0, 0))
+    {
+        gui.offset({0.5, 0.5})
+        gui.begin_path()
+
+        p := button.position + {0, button.size.y * 0.5}
+        gui.move_to(p)
+        p += {button.size.x, 0}
+        gui.line_to(p)
+
+        if button.is_down {
+            gui.stroke_path(_color(0.5), 1)
+        } else if gui.is_hovered(button) {
+            gui.stroke_path(_color(0.9), 1)
+        } else {
+            gui.stroke_path(_color(0.7), 1)
+        }
+    }
 }
 
 _update_track_group :: proc(group: ^Track_Group) {
     gui.offset(group.position)
 
+    gui.begin_path()
+    gui.rounded_rect({0, 0}, group.size, 3)
+
+    if _any_selected_track_belongs_to_group(group) {
+        gui.fill_path(_color(0.31))
+    } else {
+        gui.fill_path(_color(0.26))
+    }
+
     // Visibility button
-    group._place_x = 0.0
+    group._x_placement = PADDING.x
     _update_visibility_button(group)
 
     // Group name
-    group._place_x += group.visibility_button.size.x + SPACING.x
-    gui.fill_text_line(group.name, {group._place_x, 0})
+    group._x_placement += group.visibility_button.size.x + SPACING.x
+    _update_group_name(group)
 
     // Add selection button
-    group._place_x = group.size.x - PADDING.x
+    group._x_placement = group.size.x - PADDING.x
     _update_add_selection_button(group)
 
     // Remove selection button
-    group._place_x -= group.add_selection_button.size.x + SPACING.x
+    group._x_placement -= group.add_selection_button.size.x + SPACING.x
     _update_remove_selection_button(group)
-
-    // Separator line
-    gui.begin_path()
-    gui.move_to({0, group.size.y - 0.5})
-    gui.line_to({group.size.x, group.size.y - 0.5})
-    gui.stroke_path(color.rgb(160, 160, 160), 1)
 }
 
 _add_new_track_group :: proc(manager: ^Track_Manager, name: string) {
@@ -222,6 +323,16 @@ _update_selected_tracks :: proc(manager: ^Track_Manager) {
     }
 }
 
+_any_selected_track_belongs_to_group :: proc(group: ^Track_Group) -> bool {
+    manager := group.track_manager
+    for track in manager.selected_tracks {
+        if slice.contains(group.tracks[:], track) {
+            return true
+        }
+    }
+    return false
+}
+
 _track_is_visible :: proc(track: ^reaper.MediaTrack) -> bool {
     return reaper.GetMediaTrackInfo_Value(track, "B_SHOWINMIXER") == 1 &&
            reaper.GetMediaTrackInfo_Value(track, "B_SHOWINTCP") == 1
@@ -231,4 +342,8 @@ _set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", visible ? 1 : 0)
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", visible ? 1 : 0)
     reaper.TrackList_AdjustWindows(false)
+}
+
+_color :: proc(intensity: f32) -> Color {
+    return {intensity, intensity, intensity, 1}
 }
