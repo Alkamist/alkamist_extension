@@ -1,9 +1,9 @@
 package test_action
 
 import "core:fmt"
+import "core:math"
 import "core:slice"
 import "../../gui"
-import "../../gui/color"
 import "../../gui/widgets"
 import "../../reaper"
 
@@ -11,11 +11,9 @@ import "../../reaper"
 Vec2 :: gui.Vec2
 Color :: gui.Color
 
-SPACING :: Vec2{6, 6}
-PADDING :: Vec2{6, 6}
-
+SPACING :: Vec2{5, 5}
+PADDING :: Vec2{5, 5}
 GROUP_HEIGHT :: 24.0
-BUTTON_SIZE :: Vec2{14, 14}
 
 consola := gui.Font{"Consola", #load("../consola.ttf")}
 window: gui.Window
@@ -79,14 +77,14 @@ Track_Manager :: struct {
     groups: [dynamic]^Track_Group,
 }
 
-destroy_track_manager :: proc(manager: ^Track_Manager) {
-    delete(manager.selected_tracks)
+// destroy_track_manager :: proc(manager: ^Track_Manager) {
+//     delete(manager.selected_tracks)
 
-    for group in manager.groups {
-        destroy_track_group(group)
-    }
-    delete(manager.groups)
-}
+//     for group in manager.groups {
+//         destroy_track_group(group)
+//     }
+//     delete(manager.groups)
+// }
 
 update_track_manager :: proc(manager: ^Track_Manager) {
     reaper.PreventUIRefresh(1)
@@ -151,7 +149,7 @@ _update_group_name :: proc(group: ^Track_Group) {
 _update_visibility_button :: proc(group: ^Track_Group) {
     button := &group.visibility_button
 
-    button.size = BUTTON_SIZE
+    button.size = {16, 16}
     button.position = {
         group._x_placement,
         (group.size.y - button.size.y) * 0.5,
@@ -164,12 +162,12 @@ _update_visibility_button :: proc(group: ^Track_Group) {
     }
 
     gui.begin_path()
-    gui.rounded_rect(button.position, button.size, 3)
+    gui.path_rounded_rect(button.position, button.size, 3)
     gui.fill_path(_color(0.1))
 
     if group.is_visible {
         gui.begin_path()
-        gui.rect(button.position + {4, 4}, button.size - {8, 8})
+        gui.path_rect(button.position + {4, 4}, button.size - {8, 8})
         if button.is_down {
             gui.fill_path(_color(0.5))
         } else if gui.is_hovered(button) {
@@ -183,7 +181,7 @@ _update_visibility_button :: proc(group: ^Track_Group) {
 _update_add_selection_button :: proc(group: ^Track_Group) {
     button := &group.add_selection_button
 
-    button.size = BUTTON_SIZE
+    button.size = {12, 12}
     button.position = {
         group._x_placement - button.size.x,
         (group.size.y - button.size.y) * 0.5,
@@ -195,34 +193,20 @@ _update_add_selection_button :: proc(group: ^Track_Group) {
         _add_selected_tracks_to_group(group)
     }
 
-    {
-        gui.offset({0.5, 0.5})
-        gui.begin_path()
-
-        p := button.position + {0, button.size.y * 0.5}
-        gui.move_to(p)
-        p += {button.size.x, 0}
-        gui.line_to(p)
-
-        p = button.position + {button.size.x * 0.5, 0}
-        gui.move_to(p)
-        p += {0, button.size.y}
-        gui.line_to(p)
-
-        if button.is_down {
-            gui.stroke_path(_color(0.5), 1)
-        } else if gui.is_hovered(button) {
-            gui.stroke_path(_color(0.9), 1)
-        } else {
-            gui.stroke_path(_color(0.7), 1)
-        }
+    color_intensity := f32(0.7)
+    if button.is_down {
+        color_intensity = 0.5
+    } else if gui.is_hovered(button) {
+        color_intensity = 0.9
     }
+
+    _draw_plus(button.position, button.size, 1, _color(color_intensity))
 }
 
 _update_remove_selection_button :: proc(group: ^Track_Group) {
     button := &group.remove_selection_button
 
-    button.size = BUTTON_SIZE
+    button.size = {12, 12}
     button.position = {
         group._x_placement - button.size.x,
         (group.size.y - button.size.y) * 0.5,
@@ -234,30 +218,21 @@ _update_remove_selection_button :: proc(group: ^Track_Group) {
         _remove_selected_tracks_from_group(group)
     }
 
-    {
-        gui.offset({0.5, 0.5})
-        gui.begin_path()
-
-        p := button.position + {0, button.size.y * 0.5}
-        gui.move_to(p)
-        p += {button.size.x, 0}
-        gui.line_to(p)
-
-        if button.is_down {
-            gui.stroke_path(_color(0.5), 1)
-        } else if gui.is_hovered(button) {
-            gui.stroke_path(_color(0.9), 1)
-        } else {
-            gui.stroke_path(_color(0.7), 1)
-        }
+    color_intensity := f32(0.7)
+    if button.is_down {
+        color_intensity = 0.5
+    } else if gui.is_hovered(button) {
+        color_intensity = 0.9
     }
+
+    _draw_minus(button.position, button.size, 1, _color(color_intensity))
 }
 
 _update_track_group :: proc(group: ^Track_Group) {
     gui.offset(group.position)
 
     gui.begin_path()
-    gui.rounded_rect({0, 0}, group.size, 3)
+    gui.path_rounded_rect({0, 0}, group.size, 3)
 
     if _any_selected_track_belongs_to_group(group) {
         gui.fill_path(_color(0.31))
@@ -346,4 +321,45 @@ _set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
 
 _color :: proc(intensity: f32) -> Color {
     return {intensity, intensity, intensity, 1}
+}
+
+_draw_minus :: proc(position, size: Vec2, thickness: f32, color: Color) {
+    if size.x <= 0 || size.y <= 0 {
+        return
+    }
+
+    pixel := gui.pixel_distance()
+    position := gui.pixel_align(position)
+    size := gui.quantize(size, pixel * 2.0) + pixel
+
+    half_size := size * 0.5
+
+    gui.begin_path()
+
+    gui.path_move_to(position + {0, half_size.y})
+    gui.path_line_to(position + {size.x, half_size.y})
+
+    gui.stroke_path(color, thickness)
+}
+
+_draw_plus :: proc(position, size: Vec2, thickness: f32, color: Color) {
+    if size.x <= 0 || size.y <= 0 {
+        return
+    }
+
+    pixel := gui.pixel_distance()
+    position := gui.pixel_align(position)
+    size := gui.quantize(size, pixel * 2.0) + pixel
+
+    half_size := size * 0.5
+
+    gui.begin_path()
+
+    gui.path_move_to(position + {0, half_size.y})
+    gui.path_line_to(position + {size.x, half_size.y})
+
+    gui.path_move_to(position + {half_size.x, 0})
+    gui.path_line_to(position + {half_size.x, size.y})
+
+    gui.stroke_path(color, thickness)
 }
