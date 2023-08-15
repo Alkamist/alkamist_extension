@@ -9,6 +9,8 @@ import "../../reaper"
 
 
 
+// when locked, left click shows/hides
+// when unlocked, left drag moves
 // lock/unlock movement button
 // movement logic
 // add/delete/undo
@@ -18,11 +20,18 @@ import "../../reaper"
 
 
 
+Edit_Mode :: enum {
+    Change_Visibility,
+    Move_Groups,
+}
+
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
     selected_tracks: [dynamic]^reaper.MediaTrack,
     groups: [dynamic]^Track_Group,
     right_click_menu: Right_Click_Menu,
+    edit_mode: Edit_Mode,
+    box_select: Box_Select,
 }
 
 init_track_manager :: proc(project: ^reaper.ReaProject) -> Track_Manager {
@@ -49,6 +58,22 @@ add_new_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec
     append(&manager.groups, group)
 }
 
+add_selected_tracks_to_selected_groups :: proc(manager: ^Track_Manager) {
+    for group in manager.groups {
+        if group.is_selected {
+            add_selected_tracks_to_group(group)
+        }
+    }
+}
+
+remove_selected_tracks_from_selected_groups :: proc(manager: ^Track_Manager) {
+    for group in manager.groups {
+        if group.is_selected {
+            remove_selected_tracks_from_group(group)
+        }
+    }
+}
+
 update_track_manager :: proc(manager: ^Track_Manager) {
     reaper.PreventUIRefresh(1)
 
@@ -66,6 +91,9 @@ update_track_manager :: proc(manager: ^Track_Manager) {
 
     // Update right click menu.
     update_right_click_menu(manager)
+
+    // Update box select.
+    update_box_select(manager)
 
     // Update track visibility.
     tracks: [dynamic]^reaper.MediaTrack

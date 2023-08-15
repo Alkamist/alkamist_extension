@@ -14,11 +14,8 @@ Track_Group :: struct {
     is_selected: bool,
     tracks_are_visible: bool,
     tracks: [dynamic]^reaper.MediaTrack,
-
     name_text: widgets.Text,
     button_state: widgets.Button,
-
-    contains_selected_track: bool,
 }
 
 init_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) -> Track_Group {
@@ -62,62 +59,70 @@ remove_selected_tracks_from_group :: proc(group: ^Track_Group) {
     resize(&group.tracks, keep_position)
 }
 
-update_track_group :: proc(group: ^Track_Group) {
+group_contains_selected_track :: proc(group: ^Track_Group) -> bool {
     manager := group.manager
-
-    group.contains_selected_track = false
     for track in manager.selected_tracks {
         if slice.contains(group.tracks[:], track) {
-            group.contains_selected_track = true
-            break
+            return true
         }
     }
+    return false
+}
+
+update_track_group :: proc(group: ^Track_Group) {
+    PADDING :: 3
+
+    manager := group.manager
 
     gui.offset(group.position)
 
     pixel := gui.pixel_distance()
 
+    // Update name text.
+    group.name_text.position = PADDING
     group.name_text.data = group.name
     group.name_text.color = {1, 1, 1, 1}
-
     widgets.update_text(&group.name_text)
 
-    size := group.name_text.size
-
-    group.size = size
-    group.button_state.size = size
+    // Update sizes to fit name text.
+    group.size = group.name_text.size + PADDING * 2
+    group.button_state.size = group.size
 
     widgets.update_button(&group.button_state)
 
+    // Temporary.
     if group.button_state.pressed {
         group.is_selected = !group.is_selected
     }
 
+    // Draw the group background.
     if group.is_selected {
         gui.begin_path()
-        gui.path_rounded_rect({0, 0}, size, 3)
+        gui.path_rounded_rect({0, 0}, group.size, 3)
         gui.fill_path(color.darken(BACKGROUND_COLOR, 0.2))
 
         gui.begin_path()
-        gui.path_rounded_rect(pixel * 0.5, size - pixel, 3)
+        gui.path_rounded_rect(pixel * 0.5, group.size - pixel, 3)
         gui.stroke_path({1, 1, 1, 1}, 1)
 
-    } else if group.contains_selected_track {
+    } else if group_contains_selected_track(group) {
         gui.begin_path()
-        gui.path_rounded_rect({0, 0}, size, 3)
+        gui.path_rounded_rect({0, 0}, group.size, 3)
         gui.fill_path(color.lighten(BACKGROUND_COLOR, 0.1))
 
     } else {
         gui.begin_path()
-        gui.path_rounded_rect(pixel * 0.5, size - pixel, 3)
+        gui.path_rounded_rect(pixel * 0.5, group.size - pixel, 3)
         gui.stroke_path(color.lighten(BACKGROUND_COLOR, 0.1), 1)
     }
 
+    // Draw group name.
     widgets.draw_text(&group.name_text)
 
+    // Highlight when hovered.
     if gui.is_hovered(&group.button_state) {
         gui.begin_path()
-        gui.path_rounded_rect({0, 0}, size, 3)
+        gui.path_rounded_rect({0, 0}, group.size, 3)
         gui.fill_path({1, 1, 1, 0.08})
     }
 }
