@@ -11,10 +11,11 @@ Track_Group :: struct {
     size: Vec2,
     manager: ^Track_Manager,
     is_selected: bool,
-    tracks_are_visible: bool,
     tracks: [dynamic]^reaper.MediaTrack,
     name_text: widgets.Text,
     button_state: widgets.Button,
+
+    position_when_drag_started: Vec2,
 }
 
 init_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) -> Track_Group {
@@ -22,7 +23,6 @@ init_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) 
         name = name,
         position = position,
         manager = manager,
-        tracks_are_visible = true,
         name_text = widgets.init_text(&consola),
         button_state = widgets.init_button(),
     }
@@ -75,8 +75,6 @@ update_track_group :: proc(group: ^Track_Group) {
 
     gui.offset(group.position)
 
-    pixel := gui.pixel_distance()
-
     // Update name text.
     group.name_text.position = PADDING
     group.name_text.data = group.name
@@ -89,36 +87,33 @@ update_track_group :: proc(group: ^Track_Group) {
 
     widgets.update_button(&group.button_state)
 
-    if group.button_state.clicked {
+    // Selection logic.
+    if group.button_state.pressed {
         update_group_selection(manager, group, group.is_selected)
-
-        show_groups := !group.tracks_are_visible
-
-        for group in manager.groups {
-            if group.is_selected {
-                group.tracks_are_visible = show_groups
-            }
-        }
     }
 
-    // Draw the group background.
-    if group_contains_selected_track(group) {
-        fill_rounded_rect({0, 0}, group.size, 3, gui.lighten(BACKGROUND_COLOR, 0.2))
+    // Draw background.
+    if len(group.tracks) > 0 {
+        fill_rounded_rect({0, 0}, group.size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
     } else {
-        outline_rounded_rect({0, 0}, group.size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
+        fill_rounded_rect({0, 0}, group.size, 3, BACKGROUND_COLOR)
+        outline_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 0.1})
     }
 
-    if group.tracks_are_visible {
-        outline_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 1})
+    // Highlight green if group has a selected track.
+    if group_contains_selected_track(group) {
+        fill_rounded_rect({0, 0}, group.size, 3, {0, 1, 0, 0.2})
+    }
+
+    // Outline if selected.
+    if group.is_selected {
+        outline_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 0.7})
     }
 
     // Draw group name.
     widgets.draw_text(&group.name_text)
 
-    // Highlight when hovered/selected.
-    if group.is_selected {
-        fill_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 0.15})
-    }
+    // Highlight when hovered.
     if gui.is_hovered(&group.button_state) {
         fill_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 0.08})
     }

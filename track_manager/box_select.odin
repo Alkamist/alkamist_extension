@@ -36,9 +36,11 @@ update_box_select :: proc(manager: ^Track_Manager) {
 
     size := bottom_right - position
 
-    if !manager.right_click_menu.opened_this_frame && gui.mouse_released(.Right) {
+    if gui.mouse_released(.Right) {
         selection: [dynamic]^Track_Group
         defer delete(selection)
+
+        keep_selection := false
 
         for group in manager.groups {
             box_select_rect := gui.Rect{position, size}
@@ -47,9 +49,13 @@ update_box_select :: proc(manager: ^Track_Manager) {
             if gui.intersects(box_select_rect, group_rect, true) {
                 append(&selection, group)
             }
+
+            if group.is_selected && gui.is_hovered(&group.button_state) {
+                keep_selection = true
+            }
         }
 
-        update_group_selection(manager, selection[:], false)
+        update_group_selection(manager, selection[:], keep_selection)
     }
 
     if gui.mouse_released(.Right) {

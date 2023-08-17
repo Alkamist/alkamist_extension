@@ -109,7 +109,8 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
         if menu_hovered && gui.contains({text.position, text.size}, gui.mouse_position()) {
             item := right_click_menu_items[i]
 
-            if item.action != nil {
+            // Perform the action if the item is clicked.
+            if gui.mouse_pressed(.Left) && item.action != nil {
                 item.action(manager)
             }
 

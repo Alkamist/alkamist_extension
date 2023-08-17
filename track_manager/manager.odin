@@ -7,31 +7,20 @@ import "../../gui"
 import "../../gui/widgets"
 import "../../reaper"
 
-
-
-// when locked, left click shows/hides
-// when unlocked, left drag moves
-// lock/unlock movement button
-// movement logic
-// add/delete/undo
-// box select
-// state serialization
-// text editing
-
-
-
-Edit_Mode :: enum {
-    Change_Visibility,
-    Move_Groups,
-}
-
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
     selected_tracks: [dynamic]^reaper.MediaTrack,
     groups: [dynamic]^Track_Group,
+
     right_click_menu: Right_Click_Menu,
-    edit_mode: Edit_Mode,
     box_select: Box_Select,
+
+    is_dragging_group: bool,
+    mouse_position_when_drag_started: Vec2,
+
+    scroll: Vec2,
+    mouse_position_when_scroll_started: Vec2,
+    scroll_when_scroll_started: Vec2,
 }
 
 init_track_manager :: proc(project: ^reaper.ReaProject) -> Track_Manager {
@@ -113,29 +102,56 @@ update_track_manager :: proc(manager: ^Track_Manager) {
         append(&manager.selected_tracks, reaper.GetSelectedTrack(manager.project, i))
     }
 
-    group_is_hovered := false
-
-    // Update track groups.
-    for group in manager.groups {
-        update_track_group(group)
-
-        if gui.is_hovered(&group.button_state) {
-            group_is_hovered = true
-        }
+    // Handle scroll with middle click logic.
+    if gui.mouse_pressed(.Middle) {
+        manager.mouse_position_when_scroll_started = gui.global_mouse_position()
+        manager.scroll_when_scroll_started = manager.scroll
+    }
+    if gui.mouse_down(.Middle) {
+        scroll_delta := gui.global_mouse_position() - manager.mouse_position_when_scroll_started
+        manager.scroll = manager.scroll_when_scroll_started + scroll_delta
     }
 
-    // Clear selection if left mouse button pressed in empty space.
-    if gui.mouse_pressed(.Left) && !group_is_hovered {
-        for group in manager.groups {
-            group.is_selected = false
+    gui.offset(manager.scroll)
+
+    // Update track groups.
+    group_is_hovered := false
+
+    for group in manager.groups {
+        update_track_group(group)
+        if gui.is_hovered(&group.button_state) {
+            group_is_hovered = true
         }
     }
 
     // Update right click menu.
     update_right_click_menu(manager)
 
-    // Update box select.
+    // Update box select. (must come after right click menu)
     update_box_select(manager)
+
+    // Loop through groups again and process selection clearing and dragging.
+    left_click_in_empty_space := gui.mouse_pressed(.Left) && gui.get_hover() == nil
+
+    for group in manager.groups {
+        if left_click_in_empty_space {
+            group.is_selected = false
+        }
+
+        if gui.mouse_pressed(.Left) && group_is_hovered {
+            manager.is_dragging_group = true
+            group.position_when_drag_started = group.position
+            manager.mouse_position_when_drag_started = gui.global_mouse_position()
+        }
+        if group.is_selected && gui.mouse_down(.Left) && manager.is_dragging_group {
+            drag_delta := gui.global_mouse_position() - manager.mouse_position_when_drag_started
+            group.position = group.position_when_drag_started + drag_delta
+        }
+    }
+
+    if gui.mouse_released(.Left) {
+        manager.is_dragging_group = false
+    }
 
     // Update track visibility.
     tracks: [dynamic]^reaper.MediaTrack
@@ -153,7 +169,7 @@ update_track_manager :: proc(manager: ^Track_Manager) {
         track_should_be_visible := false
 
         for group in manager.groups {
-            if group.tracks_are_visible && slice.contains(group.tracks[:], track) {
+            if group.is_selected && slice.contains(group.tracks[:], track) {
                 track_should_be_visible = true
             }
         }

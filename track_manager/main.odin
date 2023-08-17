@@ -25,11 +25,13 @@ on_frame :: proc() {
 }
 
 init :: proc() {
-    add_new_track_group(&track_manager, "Hello World.", {100, 70})
-    add_new_track_group(&track_manager, "Chorus",{100, 100})
-    add_new_track_group(&track_manager, "Vocals",{100, 130})
-    add_new_track_group(&track_manager, "Drums",{100, 160})
-    add_new_track_group(&track_manager, "Guitars",{100, 190})
+    position := Vec2{50, 50}
+    add_new_track_group(&track_manager, "Vocals", position);  position += {0, 30}
+    add_new_track_group(&track_manager, "Drums", position);   position += {0, 30}
+    add_new_track_group(&track_manager, "Guitars", position); position += {0, 30}
+    add_new_track_group(&track_manager, "Bass", position);    position += {0, 30}
+    add_new_track_group(&track_manager, "Strings", position); position += {0, 30}
+    add_new_track_group(&track_manager, "Brass", position);   position += {0, 30}
 }
 
 run :: proc() {
