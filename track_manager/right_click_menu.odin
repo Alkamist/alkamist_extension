@@ -1,8 +1,6 @@
 package track_manager
 
 import "../../gui"
-import "../../gui/rect"
-import "../../gui/color"
 import "../../gui/widgets"
 
 Right_Click_Menu_Item :: struct {
@@ -100,21 +98,15 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     menu_hovered := gui.is_hovered(&menu.button_state)
 
     // Draw the menu frame.
-    gui.begin_path()
-    gui.path_rounded_rect({0, 0}, menu.size, 3)
-    gui.fill_path(color.lighten(BACKGROUND_COLOR, 0.1))
-
-    pixel := gui.pixel_distance()
-    gui.begin_path()
-    gui.path_rounded_rect(pixel * 0.5, menu.size - pixel, 3)
-    gui.stroke_path({1, 1, 1, 0.3}, 1)
+    fill_rounded_rect({0, 0}, menu.size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
+    outline_rounded_rect({0, 0}, menu.size, 3, {1, 1, 1, 0.3})
 
     // Process the menu items.
     for text, i in &item_texts {
         widgets.draw_text(&text)
 
         // The menu item the mouse is over.
-        if menu_hovered && rect.contains({text.position, text.size}, gui.mouse_position()) {
+        if menu_hovered && gui.contains({text.position, text.size}, gui.mouse_position()) {
             item := right_click_menu_items[i]
 
             if item.action != nil {
@@ -125,15 +117,13 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
                 menu.size.x - PADDING * 2.0,
                 text.size.y,
             }
-            gui.begin_path()
-            gui.path_rounded_rect(text.position, highlight_size, 3)
-            gui.fill_path({1, 1, 1, 0.2})
+
+            fill_rounded_rect(text.position, highlight_size, 3, {1, 1, 1, 0.2})
         }
     }
 
     // Handling closing logic.
-    if !menu.opened_this_frame &&
-       gui.mouse_pressed(.Left) || gui.mouse_pressed(.Middle) || gui.mouse_pressed(.Right) {
+    if !menu.opened_this_frame && (gui.mouse_pressed(.Left) || gui.mouse_pressed(.Middle) || gui.mouse_pressed(.Right)) {
         menu.is_open = false
     }
 }

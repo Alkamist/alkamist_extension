@@ -14,6 +14,32 @@ set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
     reaper.TrackList_AdjustWindows(false)
 }
 
+fill_rounded_rect :: proc(position, size: Vec2, rounding: f32, color: Color) {
+    gui.begin_path()
+    gui.path_rounded_rect(position, size, rounding)
+    gui.fill_path(color)
+}
+
+outline_rounded_rect :: proc(position, size: Vec2, rounding: f32, color: Color) {
+    pixel := gui.pixel_distance()
+    gui.begin_path()
+    gui.path_rounded_rect(position + pixel * 0.5, size - pixel, rounding)
+    gui.stroke_path(color, 1)
+}
+
+fill_rect :: proc(position, size: Vec2, color: Color) {
+    gui.begin_path()
+    gui.path_rect(position, size)
+    gui.fill_path(color)
+}
+
+outline_rect :: proc(position, size: Vec2, color: Color) {
+    pixel := gui.pixel_distance()
+    gui.begin_path()
+    gui.path_rect(position + pixel * 0.5, size - pixel)
+    gui.stroke_path(color, 1)
+}
+
 draw_minus :: proc(position, size: Vec2, thickness: f32, color: Color) {
     if size.x <= 0 || size.y <= 0 {
         return

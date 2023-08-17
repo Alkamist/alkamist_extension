@@ -74,6 +74,35 @@ remove_selected_tracks_from_selected_groups :: proc(manager: ^Track_Manager) {
     }
 }
 
+update_group_selection :: proc{
+    update_group_selection_single,
+    update_group_selection_multi,
+}
+
+update_group_selection_single :: proc(manager: ^Track_Manager, selection: ^Track_Group, keep_selection: bool) {
+    selection_multi := [?]^Track_Group{selection}
+    update_group_selection_multi(manager, selection_multi[:], keep_selection)
+}
+
+update_group_selection_multi :: proc(manager: ^Track_Manager, selection: []^Track_Group, keep_selection: bool) {
+    addition := gui.key_down(.Left_Shift)
+    invert := gui.key_down(.Left_Control)
+
+    if !keep_selection && !addition && !invert {
+        for group in manager.groups {
+            group.is_selected = false
+        }
+    }
+
+    for group in selection {
+        if invert {
+            group.is_selected = !group.is_selected
+        } else {
+            group.is_selected = true
+        }
+    }
+}
+
 update_track_manager :: proc(manager: ^Track_Manager) {
     reaper.PreventUIRefresh(1)
 
@@ -84,9 +113,22 @@ update_track_manager :: proc(manager: ^Track_Manager) {
         append(&manager.selected_tracks, reaper.GetSelectedTrack(manager.project, i))
     }
 
+    group_is_hovered := false
+
     // Update track groups.
     for group in manager.groups {
         update_track_group(group)
+
+        if gui.is_hovered(&group.button_state) {
+            group_is_hovered = true
+        }
+    }
+
+    // Clear selection if left mouse button pressed in empty space.
+    if gui.mouse_pressed(.Left) && !group_is_hovered {
+        for group in manager.groups {
+            group.is_selected = false
+        }
     }
 
     // Update right click menu.

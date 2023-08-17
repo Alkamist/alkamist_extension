@@ -2,7 +2,6 @@ package track_manager
 
 import "core:slice"
 import "../../gui"
-import "../../gui/color"
 import "../../gui/widgets"
 import "../../reaper"
 
@@ -90,39 +89,37 @@ update_track_group :: proc(group: ^Track_Group) {
 
     widgets.update_button(&group.button_state)
 
-    // Temporary.
-    if group.button_state.pressed {
-        group.is_selected = !group.is_selected
+    if group.button_state.clicked {
+        update_group_selection(manager, group, group.is_selected)
+
+        show_groups := !group.tracks_are_visible
+
+        for group in manager.groups {
+            if group.is_selected {
+                group.tracks_are_visible = show_groups
+            }
+        }
     }
 
     // Draw the group background.
-    if group.is_selected {
-        gui.begin_path()
-        gui.path_rounded_rect({0, 0}, group.size, 3)
-        gui.fill_path(color.darken(BACKGROUND_COLOR, 0.2))
-
-        gui.begin_path()
-        gui.path_rounded_rect(pixel * 0.5, group.size - pixel, 3)
-        gui.stroke_path({1, 1, 1, 1}, 1)
-
-    } else if group_contains_selected_track(group) {
-        gui.begin_path()
-        gui.path_rounded_rect({0, 0}, group.size, 3)
-        gui.fill_path(color.lighten(BACKGROUND_COLOR, 0.1))
-
+    if group_contains_selected_track(group) {
+        fill_rounded_rect({0, 0}, group.size, 3, gui.lighten(BACKGROUND_COLOR, 0.2))
     } else {
-        gui.begin_path()
-        gui.path_rounded_rect(pixel * 0.5, group.size - pixel, 3)
-        gui.stroke_path(color.lighten(BACKGROUND_COLOR, 0.1), 1)
+        outline_rounded_rect({0, 0}, group.size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
+    }
+
+    if group.tracks_are_visible {
+        outline_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 1})
     }
 
     // Draw group name.
     widgets.draw_text(&group.name_text)
 
-    // Highlight when hovered.
+    // Highlight when hovered/selected.
+    if group.is_selected {
+        fill_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 0.15})
+    }
     if gui.is_hovered(&group.button_state) {
-        gui.begin_path()
-        gui.path_rounded_rect({0, 0}, group.size, 3)
-        gui.fill_path({1, 1, 1, 0.08})
+        fill_rounded_rect({0, 0}, group.size, 3, {1, 1, 1, 0.08})
     }
 }
