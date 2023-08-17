@@ -1,7 +1,12 @@
 package track_manager
 
+import "core:math"
 import "../../gui"
 import "../../reaper"
+
+distance :: proc(a, b: Vec2) -> f32 {
+    return math.sqrt(math.pow((b.x - a.x), 2) + math.pow((b.y - a.y), 2))
+}
 
 track_is_visible :: proc(track: ^reaper.MediaTrack) -> bool {
     return reaper.GetMediaTrackInfo_Value(track, "B_SHOWINMIXER") == 1 &&
@@ -40,43 +45,43 @@ outline_rect :: proc(position, size: Vec2, color: Color) {
     gui.stroke_path(color, 1)
 }
 
-draw_minus :: proc(position, size: Vec2, thickness: f32, color: Color) {
-    if size.x <= 0 || size.y <= 0 {
-        return
-    }
+// draw_minus :: proc(position, size: Vec2, thickness: f32, color: Color) {
+//     if size.x <= 0 || size.y <= 0 {
+//         return
+//     }
 
-    pixel := gui.pixel_distance()
-    position := gui.pixel_align(position)
-    size := gui.quantize(size, pixel * 2.0) + pixel
+//     pixel := gui.pixel_distance()
+//     position := gui.pixel_align(position)
+//     size := gui.quantize(size, pixel * 2.0) + pixel
 
-    half_size := size * 0.5
+//     half_size := size * 0.5
 
-    gui.begin_path()
+//     gui.begin_path()
 
-    gui.path_move_to(position + {0, half_size.y})
-    gui.path_line_to(position + {size.x, half_size.y})
+//     gui.path_move_to(position + {0, half_size.y})
+//     gui.path_line_to(position + {size.x, half_size.y})
 
-    gui.stroke_path(color, thickness)
-}
+//     gui.stroke_path(color, thickness)
+// }
 
-draw_plus :: proc(position, size: Vec2, thickness: f32, color: Color) {
-    if size.x <= 0 || size.y <= 0 {
-        return
-    }
+// draw_plus :: proc(position, size: Vec2, thickness: f32, color: Color) {
+//     if size.x <= 0 || size.y <= 0 {
+//         return
+//     }
 
-    pixel := gui.pixel_distance()
-    position := gui.pixel_align(position)
-    size := gui.quantize(size, pixel * 2.0) + pixel
+//     pixel := gui.pixel_distance()
+//     position := gui.pixel_align(position)
+//     size := gui.quantize(size, pixel * 2.0) + pixel
 
-    half_size := size * 0.5
+//     half_size := size * 0.5
 
-    gui.begin_path()
+//     gui.begin_path()
 
-    gui.path_move_to(position + {0, half_size.y})
-    gui.path_line_to(position + {size.x, half_size.y})
+//     gui.path_move_to(position + {0, half_size.y})
+//     gui.path_line_to(position + {size.x, half_size.y})
 
-    gui.path_move_to(position + {half_size.x, 0})
-    gui.path_line_to(position + {half_size.x, size.y})
+//     gui.path_move_to(position + {half_size.x, 0})
+//     gui.path_line_to(position + {half_size.x, size.y})
 
-    gui.stroke_path(color, thickness)
-}
+//     gui.stroke_path(color, thickness)
+// }

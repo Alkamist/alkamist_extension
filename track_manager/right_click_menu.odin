@@ -19,9 +19,10 @@ Right_Click_Menu :: struct {
     position: Vec2,
     size: Vec2,
     is_open: bool,
-    click_start: Vec2,
-    button_state: widgets.Button,
     opened_this_frame: bool,
+    click_start: Vec2,
+
+    button_state: widgets.Button,
 }
 
 init_right_click_menu :: proc() -> Right_Click_Menu {
@@ -36,11 +37,15 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     menu.opened_this_frame = false
 
     // Handle the logic for opening the menu.
-    if !menu.is_open {
-        if gui.mouse_pressed(.Right) {
-            menu.click_start = gui.mouse_position()
-        }
-        if gui.mouse_released(.Right) && gui.mouse_position() == menu.click_start {
+    if gui.mouse_pressed(.Right) {
+        menu.click_start = gui.mouse_position()
+    }
+
+    if !menu.is_open && gui.mouse_released(.Right) {
+        // The right click menu only opens if the
+        // mouse stayed relatively still while clicking.
+        PIXEL_TOLERANCE :: 3
+        if distance(menu.click_start, gui.mouse_position()) <= gui.pixel_distance() * PIXEL_TOLERANCE {
             menu.is_open = true
             menu.opened_this_frame = true
             menu.position = gui.mouse_position()
