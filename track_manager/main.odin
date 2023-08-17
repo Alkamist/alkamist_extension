@@ -3,6 +3,15 @@ package track_manager
 import "../../gui"
 import "../../reaper"
 
+
+// z index laddering/normalization
+// offset normalization
+// lock/unlock movement
+// state saving/loading
+// interaction with multiple projects
+
+
+
 Vec2 :: gui.Vec2
 Color :: gui.Color
 
@@ -22,6 +31,10 @@ track_manager := init_track_manager(project = nil)
 
 on_frame :: proc() {
     update_track_manager(&track_manager)
+
+    if gui.key_pressed(.Escape) {
+        gui.request_window_close()
+    }
 }
 
 init :: proc() {
@@ -36,7 +49,7 @@ init :: proc() {
 
 run :: proc() {
     if gui.window_is_open(&window) {
-        gui.close_window()
+        gui.close_window(&window)
         return
     }
 
