@@ -10,20 +10,21 @@ Box_Select :: struct {
     finish: Vec2,
 }
 
-select_point :: proc(manager: ^Track_Manager, position: Vec2, keep_selection: bool) {
-    select_box(manager, position, {0, 0}, keep_selection)
+single_group_selection_logic :: proc(manager: ^Track_Manager, group: ^Track_Group, keep_selection: bool) {
+    groups := [1]^Track_Group{group}
+    group_selection_logic(manager, groups[:], keep_selection)
 }
 
-select_box :: proc(manager: ^Track_Manager, position, size: Vec2, keep_selection: bool) {
+group_selection_logic :: proc(manager: ^Track_Manager, groups: []^Track_Group, keep_selection: bool) {
     addition := gui.key_down(.Left_Shift)
     invert := gui.key_down(.Left_Control)
 
     keep_selection := keep_selection || addition || invert
 
-    // I don't know if there is a way to avoid looping twice.
     for group in manager.groups {
         if group.is_selected && gui.is_hovered(&group.button_state) {
             keep_selection = true
+            break
         }
     }
 
@@ -31,16 +32,13 @@ select_box :: proc(manager: ^Track_Manager, position, size: Vec2, keep_selection
         if !keep_selection {
             group.is_selected = false
         }
+    }
 
-        box_select_rect := gui.Rect{position, size}
-        group_rect := gui.Rect{group.position, group.size}
-
-        if gui.intersects(box_select_rect, group_rect, true) {
-            if invert {
-                group.is_selected = !group.is_selected
-            } else {
-                group.is_selected = true
-            }
+    for group in groups {
+        if invert {
+            group.is_selected = !group.is_selected
+        } else {
+            group.is_selected = true
         }
     }
 }
@@ -73,10 +71,23 @@ update_box_select :: proc(manager: ^Track_Manager) {
         size := bottom_right - position
 
         if gui.mouse_released(.Right) {
+            box_select_rect := gui.Rect{position, size}
+
+            groups_touched: [dynamic]^Track_Group
+            defer delete(groups_touched)
+
+            for group in manager.groups {
+                group_rect := gui.Rect{group.position, group.size}
+                if gui.intersects(box_select_rect, group_rect, true) {
+                    append(&groups_touched, group)
+                }
+            }
+
             // Don't clear the selection when opening the right click menu in empty space.
             keep_selection := manager.right_click_menu.opened_this_frame && !manager.group_is_hovered
 
-            select_box(manager, position, size, keep_selection)
+            group_selection_logic(manager, groups_touched[:], keep_selection)
+
             box_select.is_active = false
         }
 

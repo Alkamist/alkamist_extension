@@ -5,7 +5,6 @@ import "../../reaper"
 
 
 
-// z index laddering/normalization
 // stop view from going too far away
 // lock/unlock movement
 // state saving/loading

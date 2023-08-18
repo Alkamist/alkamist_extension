@@ -36,6 +36,7 @@ destroy_track_group :: proc(group: ^Track_Group) {
 update_track_groups :: proc(manager: ^Track_Manager) {
     PADDING :: 3
 
+    // Process dragging.
     if manager.is_dragging_groups && !gui.mouse_down(.Left) && !gui.mouse_down(.Middle) {
         manager.is_dragging_groups = false
     }
@@ -54,8 +55,8 @@ update_track_groups :: proc(manager: ^Track_Manager) {
     do_left_drag := manager.is_dragging_groups && gui.mouse_down(.Left)
     do_middle_drag := manager.is_dragging_groups && gui.mouse_down(.Middle)
 
-    // Process selection clearing and dragging.
     for group in manager.groups {
+        // Clear selection when left clicking in empty space here for convenience.
         if left_click_in_empty_space {
             group.is_selected = false
         }
@@ -70,8 +71,11 @@ update_track_groups :: proc(manager: ^Track_Manager) {
         }
     }
 
+    // Process groups.
     manager.group_is_hovered = false
     mouse_position := gui.mouse_position()
+
+    group_button_pressed := false
 
     for group in manager.groups {
         // Update name text.
@@ -89,7 +93,8 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 
         // Selection logic.
         if group.button_state.pressed {
-            select_point(manager, mouse_position, false)
+            single_group_selection_logic(manager, group, false)
+            group_button_pressed = true
         }
 
         // Draw background.
@@ -126,5 +131,38 @@ update_track_groups :: proc(manager: ^Track_Manager) {
             manager.group_is_hovered = true
             fill_rounded_rect(group.position, group.size, 3, {1, 1, 1, 0.08})
         }
+    }
+
+    // Bring selected groups to front on group left click interaction.
+    if group_button_pressed {
+        selected_groups: [dynamic]^Track_Group
+        defer delete(selected_groups)
+
+        for group in manager.groups {
+            if group.is_selected {
+                append(&selected_groups, group)
+            }
+        }
+
+        bring_groups_to_front(manager, selected_groups[:])
+    }
+}
+
+bring_groups_to_front :: proc(manager: ^Track_Manager, groups: []^Track_Group) {
+    keep_position := 0
+
+    for i in 0 ..< len(manager.groups) {
+        if !slice.contains(groups, manager.groups[i]) {
+            if keep_position != i {
+                manager.groups[keep_position] = manager.groups[i]
+            }
+            keep_position += 1
+        }
+    }
+
+    resize(&manager.groups, keep_position)
+
+    for group in groups {
+        append(&manager.groups, group)
     }
 }
