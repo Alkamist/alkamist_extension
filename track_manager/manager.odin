@@ -17,12 +17,8 @@ Track_Manager :: struct {
     right_click_menu: Right_Click_Menu,
     box_select: Box_Select,
 
-    is_dragging_group: bool,
+    is_dragging_groups: bool,
     mouse_position_when_drag_started: Vec2,
-
-    scroll: Vec2,
-    mouse_position_when_scroll_started: Vec2,
-    scroll_when_scroll_started: Vec2,
 }
 
 init_track_manager :: proc(project: ^reaper.ReaProject) -> Track_Manager {
@@ -89,18 +85,6 @@ update_track_manager :: proc(manager: ^Track_Manager) {
     for i in 0 ..< count {
         append(&manager.selected_tracks, reaper.GetSelectedTrack(manager.project, i))
     }
-
-    // Scroll with middle click logic.
-    if gui.mouse_pressed(.Middle) {
-        manager.mouse_position_when_scroll_started = gui.global_mouse_position()
-        manager.scroll_when_scroll_started = manager.scroll
-    }
-    if gui.mouse_down(.Middle) {
-        scroll_delta := gui.global_mouse_position() - manager.mouse_position_when_scroll_started
-        manager.scroll = manager.scroll_when_scroll_started + scroll_delta
-    }
-
-    gui.offset(manager.scroll)
 
     update_track_groups(manager)
     update_right_click_menu(manager)

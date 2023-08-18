@@ -58,8 +58,6 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
         return
     }
 
-    gui.offset(menu.position)
-
     // Add menu text every frame.
     item_texts := [?]widgets.Text{
         widgets.init_text(&consola),
@@ -77,7 +75,7 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     SPACING :: 3
 
     // Measure menu text and update menu size accordingly.
-    item_position := Vec2{PADDING, PADDING}
+    item_position := menu.position + Vec2{PADDING, PADDING}
     menu.size = Vec2{0, 0}
 
     for text, i in &item_texts {
@@ -88,23 +86,24 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
 
         widgets.update_text(&text)
 
-        item_bottom_right := text.position + text.size
-        menu.size.x = max(menu.size.x, item_bottom_right.x)
-        menu.size.y = max(menu.size.y, item_bottom_right.y)
+        relative_item_bottom_right := text.position + text.size - menu.position
+        menu.size.x = max(menu.size.x, relative_item_bottom_right.x)
+        menu.size.y = max(menu.size.y, relative_item_bottom_right.y)
         item_position.y += text.size.y + SPACING
     }
 
     menu.size += PADDING
 
     // Update the button state of the menu since the size is now known.
+    menu.button_state.position = menu.position
     menu.button_state.size = menu.size
     widgets.update_button(&menu.button_state)
 
     menu_hovered := gui.is_hovered(&menu.button_state)
 
     // Draw the menu frame.
-    fill_rounded_rect({0, 0}, menu.size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
-    outline_rounded_rect({0, 0}, menu.size, 3, {1, 1, 1, 0.3})
+    fill_rounded_rect(menu.position, menu.size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
+    outline_rounded_rect(menu.position, menu.size, 3, {1, 1, 1, 0.3})
 
     // Process the menu items.
     for text, i in &item_texts {

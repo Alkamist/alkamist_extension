@@ -4,11 +4,13 @@ import "../../gui"
 import "../../reaper"
 
 
+
 // z index laddering/normalization
-// offset normalization
+// stop view from going too far away
 // lock/unlock movement
 // state saving/loading
 // interaction with multiple projects
+// text edit to facilitate adding and removing groups
 
 
 
