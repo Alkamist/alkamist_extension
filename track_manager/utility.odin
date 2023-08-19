@@ -3,21 +3,11 @@ package track_manager
 import "core:fmt"
 import "core:math"
 import "core:strings"
+import "../utility"
 import "../../gui"
 import "../../reaper"
 
-debug :: proc(format: string, args: ..any) {
-    msg := fmt.aprintf(format, ..args)
-    defer delete(msg)
-
-    msg_with_newline := strings.concatenate({msg, "\n"})
-    defer delete(msg_with_newline)
-
-    msg_cstring := strings.clone_to_cstring(msg_with_newline)
-    defer delete(msg_cstring)
-
-    reaper.ShowConsoleMsg(msg_cstring)
-}
+debug :: utility.debug
 
 distance :: proc(a, b: Vec2) -> f32 {
     return math.sqrt(math.pow((b.x - a.x), 2) + math.pow((b.y - a.y), 2))

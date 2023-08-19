@@ -139,7 +139,7 @@ update_track_manager :: proc(manager: ^Track_Manager) {
     if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
     if gui.key_pressed(.L) do toggle_lock_movement(manager)
     if gui.key_pressed(.C) do center_groups(manager)
-    if gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
+    if !gui.key_down(.Left_Control) && gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
 
     // Update track visibility.
     tracks: [dynamic]^reaper.MediaTrack
