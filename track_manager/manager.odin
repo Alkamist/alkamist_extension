@@ -77,6 +77,10 @@ remove_selected_tracks_from_selected_groups :: proc(manager: ^Track_Manager) {
     }
 }
 
+movement_is_locked :: proc(manager: ^Track_Manager) -> bool {
+    return manager.movement_is_locked
+}
+
 toggle_lock_movement :: proc(manager: ^Track_Manager) {
     manager.movement_is_locked = !manager.movement_is_locked
 }

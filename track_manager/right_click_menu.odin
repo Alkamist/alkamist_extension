@@ -6,15 +6,15 @@ import "../../gui/widgets"
 Right_Click_Menu_Item :: struct {
     name: string,
     action: proc(manager: ^Track_Manager),
-    is_active: ^bool,
+    is_active: proc(manager: ^Track_Manager) -> bool,
 }
 
 right_click_menu_items := [?]Right_Click_Menu_Item{
-    {"Add selected tracks", add_selected_tracks_to_selected_groups, nil},
-    {"Remove selected tracks", remove_selected_tracks_from_selected_groups, nil},
-    {"Select tracks", select_tracks_of_selected_groups, nil},
-    {"Center all groups", center_groups, nil},
-    {"Lock movement", toggle_lock_movement, &track_manager.movement_is_locked},
+    {"(A) Add selected tracks", add_selected_tracks_to_selected_groups, nil},
+    {"(R) Remove selected tracks", remove_selected_tracks_from_selected_groups, nil},
+    {"(S) Select tracks", select_tracks_of_selected_groups, nil},
+    {"(C) Center all groups", center_groups, nil},
+    {"(L) Lock movement", toggle_lock_movement, movement_is_locked},
     {"Add group", nil, nil},
     {"Delete groups", nil, nil},
 }
@@ -103,6 +103,7 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     }
 
     menu.size += PADDING
+    menu.size = gui.pixel_align(menu.size)
 
     // Update the button state of the menu since the size is now known.
     menu.button_state.position = menu.position
@@ -121,7 +122,7 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
 
         widgets.draw_text(&text)
 
-        is_active := item.is_active != nil ? item.is_active^ : false
+        is_active := item.is_active != nil ? item.is_active(manager) : false
 
         if is_active {
             max_item_width := menu.size.x - PADDING * 2

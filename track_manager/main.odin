@@ -7,7 +7,8 @@ import "../../reaper"
 
 // interaction with multiple projects (manager for each project in hash table?)
 // state saving/loading
-// text edit to facilitate adding and removing groups
+// text edit to facilitate adding groups
+// delete groups (prompt if sure)
 
 
 
