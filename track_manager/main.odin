@@ -5,7 +5,6 @@ import "../../reaper"
 
 
 
-// alt click selects tracks
 // interaction with multiple projects (manager for each project in hash table?)
 // state saving/loading
 // text edit to facilitate adding and removing groups

@@ -12,6 +12,7 @@ Right_Click_Menu_Item :: struct {
 right_click_menu_items := [?]Right_Click_Menu_Item{
     {"Add selected tracks", add_selected_tracks_to_selected_groups, nil},
     {"Remove selected tracks", remove_selected_tracks_from_selected_groups, nil},
+    {"Select tracks", select_tracks_of_selected_groups, nil},
     {"Center all groups", center_groups, nil},
     {"Lock movement", toggle_lock_movement, &track_manager.movement_is_locked},
     {"Add group", nil, nil},

@@ -33,12 +33,18 @@ destroy_track_group :: proc(group: ^Track_Group) {
     delete(group.tracks)
 }
 
+select_tracks_of_group :: proc(group: ^Track_Group) {
+    for track in group.tracks {
+        reaper.SetTrackSelected(track, true)
+    }
+}
+
 process_dragging :: proc(manager: ^Track_Manager) {
     if manager.is_dragging_groups && !gui.mouse_down(.Left) && !gui.mouse_down(.Middle) {
         manager.is_dragging_groups = false
     }
 
-    start_left_drag := manager.group_is_hovered && gui.mouse_pressed(.Left)
+    start_left_drag := !manager.movement_is_locked && manager.group_is_hovered && gui.mouse_pressed(.Left)
     start_middle_drag := gui.mouse_pressed(.Middle)
     start_drag := !manager.is_dragging_groups && (start_left_drag || start_middle_drag)
 
@@ -47,7 +53,7 @@ process_dragging :: proc(manager: ^Track_Manager) {
         manager.mouse_position_when_drag_started = gui.mouse_position()
     }
 
-    do_left_drag := manager.is_dragging_groups && gui.mouse_down(.Left)
+    do_left_drag := !manager.movement_is_locked && manager.is_dragging_groups && gui.mouse_down(.Left)
     do_middle_drag := manager.is_dragging_groups && gui.mouse_down(.Middle)
 
     for group in manager.groups {
@@ -65,9 +71,7 @@ process_dragging :: proc(manager: ^Track_Manager) {
 update_track_groups :: proc(manager: ^Track_Manager) {
     PADDING :: 3
 
-    if !manager.movement_is_locked {
-        process_dragging(manager)
-    }
+    process_dragging(manager)
 
     // Clear selection when left clicking empty space.
     if gui.mouse_pressed(.Left) && gui.get_hover() == nil {

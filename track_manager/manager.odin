@@ -109,6 +109,14 @@ center_groups :: proc(manager: ^Track_Manager) {
     }
 }
 
+select_tracks_of_selected_groups :: proc(manager: ^Track_Manager) {
+    for group in manager.groups {
+        if group.is_selected {
+            select_tracks_of_group(group)
+        }
+    }
+}
+
 update_track_manager :: proc(manager: ^Track_Manager) {
     reaper.PreventUIRefresh(1)
 
@@ -122,6 +130,12 @@ update_track_manager :: proc(manager: ^Track_Manager) {
     update_track_groups(manager)
     update_right_click_menu(manager)
     update_box_select(manager)
+
+    if gui.key_pressed(.A) do add_selected_tracks_to_selected_groups(manager)
+    if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
+    if gui.key_pressed(.L) do toggle_lock_movement(manager)
+    if gui.key_pressed(.C) do center_groups(manager)
+    if gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
 
     // Update track visibility.
     tracks: [dynamic]^reaper.MediaTrack
