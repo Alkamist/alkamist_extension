@@ -5,10 +5,9 @@ import "../../reaper"
 
 
 
-// stop view from going too far away
-// lock/unlock movement
+// alt click selects tracks
+// interaction with multiple projects (manager for each project in hash table?)
 // state saving/loading
-// interaction with multiple projects
 // text edit to facilitate adding and removing groups
 
 

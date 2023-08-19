@@ -33,10 +33,7 @@ destroy_track_group :: proc(group: ^Track_Group) {
     delete(group.tracks)
 }
 
-update_track_groups :: proc(manager: ^Track_Manager) {
-    PADDING :: 3
-
-    // Process dragging.
+process_dragging :: proc(manager: ^Track_Manager) {
     if manager.is_dragging_groups && !gui.mouse_down(.Left) && !gui.mouse_down(.Middle) {
         manager.is_dragging_groups = false
     }
@@ -47,27 +44,35 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 
     if start_drag {
         manager.is_dragging_groups = true
-        manager.mouse_position_when_drag_started = gui.global_mouse_position()
+        manager.mouse_position_when_drag_started = gui.mouse_position()
     }
-
-    left_click_in_empty_space := gui.mouse_pressed(.Left) && gui.get_hover() == nil
 
     do_left_drag := manager.is_dragging_groups && gui.mouse_down(.Left)
     do_middle_drag := manager.is_dragging_groups && gui.mouse_down(.Middle)
 
     for group in manager.groups {
-        // Clear selection when left clicking in empty space here for convenience.
-        if left_click_in_empty_space {
-            group.is_selected = false
-        }
-
         if start_drag {
             group.position_when_drag_started = group.position
         }
 
         if do_middle_drag || (do_left_drag && group.is_selected) {
-            drag_delta := gui.global_mouse_position() - manager.mouse_position_when_drag_started
+            drag_delta := gui.mouse_position() - manager.mouse_position_when_drag_started
             group.position = group.position_when_drag_started + drag_delta
+        }
+    }
+}
+
+update_track_groups :: proc(manager: ^Track_Manager) {
+    PADDING :: 3
+
+    if !manager.movement_is_locked {
+        process_dragging(manager)
+    }
+
+    // Clear selection when left clicking empty space.
+    if gui.mouse_pressed(.Left) && gui.get_hover() == nil {
+        for group in manager.groups {
+            group.is_selected = false
         }
     }
 

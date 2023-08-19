@@ -12,6 +12,7 @@ Track_Manager :: struct {
     selected_tracks: [dynamic]^reaper.MediaTrack,
     groups: [dynamic]^Track_Group,
 
+    movement_is_locked: bool,
     group_is_hovered: bool,
 
     right_click_menu: Right_Click_Menu,
@@ -73,6 +74,38 @@ remove_selected_tracks_from_selected_groups :: proc(manager: ^Track_Manager) {
         }
 
         resize(&group.tracks, keep_position)
+    }
+}
+
+toggle_lock_movement :: proc(manager: ^Track_Manager) {
+    manager.movement_is_locked = !manager.movement_is_locked
+}
+
+center_groups :: proc(manager: ^Track_Manager) {
+    if len(manager.groups) == 0 {
+        return
+    }
+
+    top_left := Vec2{max(f32), max(f32)}
+    bottom_right := Vec2{min(f32), min(f32)}
+
+    for group in manager.groups {
+        top_left.x = min(top_left.x, group.position.x)
+        top_left.y = min(top_left.y, group.position.y)
+
+        group_bottom_right := group.position + group.size
+
+        bottom_right.x = max(bottom_right.x, group_bottom_right.x)
+        bottom_right.y = max(bottom_right.y, group_bottom_right.y)
+    }
+
+    center := top_left + (bottom_right - top_left) * 0.5
+    view_center := gui.window_size() * 0.5
+
+    offset := gui.pixel_align(view_center - center)
+
+    for group in manager.groups {
+        group.position += offset
     }
 }
 

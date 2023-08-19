@@ -6,13 +6,16 @@ import "../../gui/widgets"
 Right_Click_Menu_Item :: struct {
     name: string,
     action: proc(manager: ^Track_Manager),
+    is_active: ^bool,
 }
 
 right_click_menu_items := [?]Right_Click_Menu_Item{
-    {"Add selected tracks", add_selected_tracks_to_selected_groups},
-    {"Remove selected tracks", remove_selected_tracks_from_selected_groups},
-    {"Add group", nil},
-    {"Delete groups", nil},
+    {"Add selected tracks", add_selected_tracks_to_selected_groups, nil},
+    {"Remove selected tracks", remove_selected_tracks_from_selected_groups, nil},
+    {"Center all groups", center_groups, nil},
+    {"Lock movement", toggle_lock_movement, &track_manager.movement_is_locked},
+    {"Add group", nil, nil},
+    {"Delete groups", nil, nil},
 }
 
 Right_Click_Menu :: struct {
@@ -59,11 +62,9 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     }
 
     // Add menu text every frame.
-    item_texts := [?]widgets.Text{
-        widgets.init_text(&consola),
-        widgets.init_text(&consola),
-        widgets.init_text(&consola),
-        widgets.init_text(&consola),
+    item_texts: [len(right_click_menu_items)]widgets.Text
+    for i in 0 ..< len(item_texts) {
+        item_texts[i] = widgets.init_text(&consola)
     }
 
     // Clean up menu text every frame.
@@ -73,23 +74,31 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
 
     PADDING :: 3
     SPACING :: 3
+    ACTIVE_CIRCLE_RADIUS :: 3
 
     // Measure menu text and update menu size accordingly.
-    item_position := menu.position + Vec2{PADDING, PADDING}
+    text_position := menu.position + Vec2{PADDING, PADDING}
     menu.size = Vec2{0, 0}
 
     for text, i in &item_texts {
         item := right_click_menu_items[i]
 
         text.data = item.name
-        text.position = item_position
+        text.position = text_position
 
         widgets.update_text(&text)
 
         relative_item_bottom_right := text.position + text.size - menu.position
+
+        // Make room for the active circle if the item needs one.
+        if item.is_active != nil {
+            relative_item_bottom_right.x += f32(ACTIVE_CIRCLE_RADIUS + PADDING) * 2
+        }
+
         menu.size.x = max(menu.size.x, relative_item_bottom_right.x)
         menu.size.y = max(menu.size.y, relative_item_bottom_right.y)
-        item_position.y += text.size.y + SPACING
+
+        text_position.y += text.size.y + SPACING
     }
 
     menu.size += PADDING
@@ -107,12 +116,23 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
 
     // Process the menu items.
     for text, i in &item_texts {
+        item := right_click_menu_items[i]
+
         widgets.draw_text(&text)
+
+        is_active := item.is_active != nil ? item.is_active^ : false
+
+        if is_active {
+            max_item_width := menu.size.x - PADDING * 2
+            position := Vec2{
+                text.position.x + max_item_width - ACTIVE_CIRCLE_RADIUS * 2 - PADDING,
+                text.position.y + text.size.y * 0.5,
+            }
+            fill_circle(position, ACTIVE_CIRCLE_RADIUS, {1, 1, 1, 1})
+        }
 
         // The menu item the mouse is over.
         if menu_hovered && gui.contains({text.position, text.size}, gui.mouse_position()) {
-            item := right_click_menu_items[i]
-
             // Perform the action if the item is clicked.
             if gui.mouse_pressed(.Left) && item.action != nil {
                 item.action(manager)

@@ -11,8 +11,7 @@ Box_Select :: struct {
 }
 
 single_group_selection_logic :: proc(manager: ^Track_Manager, group: ^Track_Group, keep_selection: bool) {
-    groups := [1]^Track_Group{group}
-    group_selection_logic(manager, groups[:], keep_selection)
+    group_selection_logic(manager, {group}, keep_selection)
 }
 
 group_selection_logic :: proc(manager: ^Track_Manager, groups: []^Track_Group, keep_selection: bool) {
