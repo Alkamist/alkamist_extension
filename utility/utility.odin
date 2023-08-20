@@ -22,3 +22,25 @@ debug :: proc(format: string, args: ..any) {
 
     reaper.ShowConsoleMsg(msg_cstring)
 }
+
+get_line :: proc(ctx: ^reaper.ProjectStateContext, backing_buffer: []byte) -> (result: string, ok: bool) {
+    if reaper.ProjectStateContext_GetLine(ctx, &backing_buffer[0], i32(len(backing_buffer))) != 0 {
+        return "", false
+    }
+
+    if backing_buffer[0] == '>' {
+        return "", false
+    }
+
+    return strings.trim_null(cast(string)backing_buffer[:]), true
+}
+
+add_line :: proc(ctx: ^reaper.ProjectStateContext, format: string, args: ..any) {
+    position := fmt.aprintf(format, ..args)
+    defer delete(position)
+
+    position_cstring := strings.clone_to_cstring(position)
+    defer delete(position_cstring)
+
+    reaper.ProjectStateContext_AddLine(ctx, position_cstring)
+}

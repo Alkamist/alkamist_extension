@@ -3,11 +3,14 @@ package track_manager
 import "core:fmt"
 import "core:math"
 import "core:strings"
+import "core:strconv"
 import "../utility"
 import "../../gui"
 import "../../reaper"
 
 debug :: utility.debug
+get_line :: utility.get_line
+add_line :: utility.add_line
 
 distance :: proc(a, b: Vec2) -> f32 {
     return math.sqrt(math.pow((b.x - a.x), 2) + math.pow((b.y - a.y), 2))
@@ -23,6 +26,13 @@ set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", visible ? 1 : 0)
     reaper.TrackList_AdjustWindows(false)
 }
+
+// parse_vec2_field :: proc(tokens: []string, name: string) -> (result: Vec2, ok: bool) {
+//     if tokens[0] != name do return {}, false
+//     result.x = strconv.parse_f32(tokens[1]) or_return
+//     result.y = strconv.parse_f32(tokens[2]) or_return
+//     return result, true
+// }
 
 fill_rounded_rect :: proc(position, size: Vec2, rounding: f32, color: Color) {
     gui.begin_path()

@@ -1,5 +1,8 @@
 package track_manager
 
+import "core:fmt"
+import "core:strings"
+import "core:strconv"
 import "../utility"
 import "../../gui"
 import "../../reaper"
@@ -10,6 +13,13 @@ import "../../reaper"
 // text edit to facilitate adding groups
 // delete groups (prompt if sure)
 
+// Save:
+// window position
+// groups:
+//     name
+//     position
+//     is_selected
+//     track_guids
 
 
 Vec2 :: gui.Vec2
@@ -29,12 +39,64 @@ window := gui.init_window(
 
 track_managers: map[^reaper.ReaProject]Track_Manager
 
-on_project_load :: proc(project: ^reaper.ReaProject) {
-    // debug("Loaded")
+load_state :: proc(ctx: ^reaper.ProjectStateContext) {
+    project := reaper.GetCurrentProjectInLoadSave()
+    if !(project in track_managers) {
+        track_managers[project] = init_track_manager(project)
+    }
+
+    manager := &track_managers[project]
+    buffer: [4096]byte
+
+    // Loop through lines.
+    for {
+        line, ok := get_line(ctx, buffer[:])
+        if !ok {
+            break
+        }
+
+        line_tokens := strings.split(line, " ")
+        defer delete(line_tokens)
+
+        if len(line_tokens) == 0 {
+            break
+        }
+
+        switch line_tokens[0] {
+        case "<GROUP":
+
+        }
+    }
 }
 
-on_project_save :: proc(project: ^reaper.ReaProject) {
-    // debug("Saved")
+save_state :: proc(ctx: ^reaper.ProjectStateContext) {
+    project := reaper.GetCurrentProjectInLoadSave()
+
+    manager, exists := &track_managers[project]
+    if !exists {
+        return
+    }
+
+    for group in manager.groups {
+        save_group_state(ctx, group)
+    }
+}
+
+save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: ^Track_Group) {
+    add_line(ctx, "<GROUP")
+    add_line(ctx, "NAME %s", group.name)
+    add_line(ctx, "POSITION %f %f", group.position.x, group.position.y)
+    add_line(ctx, "ISSELECTED %d", cast(int)group.is_selected)
+
+    add_line(ctx, "<TRACKGUIDS")
+    for track in group.tracks {
+        buffer: [64]byte
+        reaper.guidToString(reaper.GetTrackGUID(track), &buffer[0])
+        add_line(ctx, "%s", cast(string)buffer[:])
+    }
+    add_line(ctx, ">")
+
+    add_line(ctx, ">")
 }
 
 on_frame :: proc() {
@@ -68,6 +130,12 @@ on_frame :: proc() {
     if gui.key_pressed(.Escape) {
         gui.request_window_close()
     }
+
+    // if gui.key_pressed(.T) {
+    //     reaper.Undo_BeginBlock2(nil)
+    //     reaper.Undo_EndBlock2(nil, "Alkamist Test", reaper.UNDO_STATE_MISCCFG)
+    //     // reaper.Undo_OnStateChangeEx2(nil, "Alkamist Test", reaper.UNDO_STATE_MISCCFG, -1)
+    // }
 }
 
 run :: proc() {

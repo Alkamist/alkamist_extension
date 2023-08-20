@@ -1,7 +1,7 @@
 package main
 
 import "core:c"
-// import "core:"
+import "core:strings"
 import "core:runtime"
 import "../gui"
 import "../reaper"
@@ -12,17 +12,35 @@ main_context: runtime.Context
 
 project_config_extension := reaper.project_config_extension_t{
     ProcessExtensionLine = proc "c" (line: cstring, ctx: ^reaper.ProjectStateContext, isUndo: bool, reg: ^reaper.project_config_extension_t) -> bool {
-        return false
+        context = main_context
+
+        line_tokens := strings.split(cast(string)line, " ")
+        defer delete(line_tokens)
+
+        if len(line_tokens) == 0 {
+            return false
+        }
+
+        if line_tokens[0] == "<ALKAMISTTRACKMANAGER" {
+            track_manager.load_state(ctx)
+        }
+
+        return true
     },
     SaveExtensionConfig = proc "c" (ctx: ^reaper.ProjectStateContext, isUndo: bool, reg: ^reaper.project_config_extension_t) {
+        if isUndo {
+            return
+        }
+
         context = main_context
-        project := reaper.GetCurrentProjectInLoadSave()
-        track_manager.on_project_save(project)
+
+        utility.add_line(ctx, "<ALKAMISTTRACKMANAGER")
+        track_manager.save_state(ctx)
+        utility.add_line(ctx, ">")
+
     },
     BeginLoadProjectState = proc "c" (isUndo: bool, reg: ^reaper.project_config_extension_t) {
         context = main_context
-        project := reaper.GetCurrentProjectInLoadSave()
-        track_manager.on_project_load(project)
     },
     userData = nil,
 }
