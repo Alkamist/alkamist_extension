@@ -5,7 +5,7 @@ import "core:strings"
 import "core:runtime"
 import "../gui"
 import "../reaper"
-import "utility"
+import "shared"
 import "track_manager"
 
 main_context: runtime.Context
@@ -34,13 +34,14 @@ project_config_extension := reaper.project_config_extension_t{
 
         context = main_context
 
-        utility.add_line(ctx, "<ALKAMISTTRACKMANAGER")
+        shared.add_line(ctx, "<ALKAMISTTRACKMANAGER")
         track_manager.save_state(ctx)
-        utility.add_line(ctx, ">")
+        shared.add_line(ctx, ">")
 
     },
     BeginLoadProjectState = proc "c" (isUndo: bool, reg: ^reaper.project_config_extension_t) {
         context = main_context
+        track_manager.pre_load()
     },
     userData = nil,
 }
@@ -52,11 +53,13 @@ reaper_extension_main :: proc() {
 
     reaper.add_timer(proc() {
         gui.update()
-        if utility.save_requested {
+        if shared.save_requested {
             reaper.Main_OnCommandEx(40026, 0, nil)
-            utility.save_requested = false
+            shared.save_requested = false
         }
     })
+
+    track_manager.init()
 }
 
 @export

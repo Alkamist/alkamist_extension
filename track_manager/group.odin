@@ -19,10 +19,8 @@ Track_Group :: struct {
     position_when_drag_started: Vec2,
 }
 
-init_track_group :: proc(name: string, position: Vec2) -> Track_Group {
+init_track_group :: proc() -> Track_Group {
     return {
-        name = name,
-        position = position,
         name_text = widgets.init_text(&consola),
         button_state = widgets.init_button(),
     }
@@ -31,6 +29,7 @@ init_track_group :: proc(name: string, position: Vec2) -> Track_Group {
 destroy_track_group :: proc(group: ^Track_Group) {
     delete(group.name)
     delete(group.tracks)
+    widgets.destroy_text(&group.name_text)
 }
 
 select_tracks_of_group :: proc(group: ^Track_Group) {
@@ -158,20 +157,8 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 }
 
 bring_groups_to_front :: proc(manager: ^Track_Manager, groups: []^Track_Group) {
-    keep_position := 0
-
-    for i in 0 ..< len(manager.groups) {
-        if !slice.contains(groups, manager.groups[i]) {
-            if keep_position != i {
-                manager.groups[keep_position] = manager.groups[i]
-            }
-            keep_position += 1
-        }
-    }
-
-    resize(&manager.groups, keep_position)
-
-    for group in groups {
-        append(&manager.groups, group)
-    }
+    keep_if(&manager.groups, groups, proc(group: ^Track_Group, groups: []^Track_Group) -> bool {
+        return !slice.contains(groups, group)
+    })
+    append(&manager.groups, ..groups)
 }

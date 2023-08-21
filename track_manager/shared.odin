@@ -4,13 +4,26 @@ import "core:fmt"
 import "core:math"
 import "core:strings"
 import "core:strconv"
-import "../utility"
+import "../shared"
 import "../../gui"
 import "../../reaper"
 
-debug :: utility.debug
-get_line :: utility.get_line
-add_line :: utility.add_line
+debug :: shared.debug
+add_line :: shared.add_line
+add_linef :: shared.add_linef
+get_line :: shared.get_line
+save_project :: shared.save_project
+load_tracks_from_guid_strings :: shared.load_tracks_from_guid_strings
+Project_State_Parser :: shared.Project_State_Parser
+destroy_project_state_parser :: shared.destroy_project_state_parser
+is_empty_line :: shared.is_empty_line
+advance_line :: shared.advance_line
+get_string_field :: shared.get_string_field
+get_f32_field :: shared.get_f32_field
+get_int_field :: shared.get_int_field
+get_vec2_field :: shared.get_vec2_field
+keep_if :: shared.keep_if
+format_f32_for_storage :: shared.format_f32_for_storage
 
 distance :: proc(a, b: Vec2) -> f32 {
     return math.sqrt(math.pow((b.x - a.x), 2) + math.pow((b.y - a.y), 2))
@@ -26,13 +39,6 @@ set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", visible ? 1 : 0)
     reaper.TrackList_AdjustWindows(false)
 }
-
-// parse_vec2_field :: proc(tokens: []string, name: string) -> (result: Vec2, ok: bool) {
-//     if tokens[0] != name do return {}, false
-//     result.x = strconv.parse_f32(tokens[1]) or_return
-//     result.y = strconv.parse_f32(tokens[2]) or_return
-//     return result, true
-// }
 
 fill_rounded_rect :: proc(position, size: Vec2, rounding: f32, color: Color) {
     gui.begin_path()

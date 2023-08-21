@@ -40,9 +40,19 @@ destroy_track_manager :: proc(manager: ^Track_Manager) {
     delete(manager.groups)
 }
 
+reset_track_manager :: proc(manager: ^Track_Manager) {
+    for group in manager.groups {
+        destroy_track_group(group)
+        free(group)
+    }
+    clear(&manager.groups)
+}
+
 add_new_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) {
     group := new(Track_Group)
-    group^ = init_track_group(name, position)
+    group^ = init_track_group()
+    group.name = name
+    group.position = position
     append(&manager.groups, group)
 }
 
@@ -61,19 +71,9 @@ add_selected_tracks_to_selected_groups :: proc(manager: ^Track_Manager) {
 remove_selected_tracks_from_selected_groups :: proc(manager: ^Track_Manager) {
     for group in manager.groups {
         if !group.is_selected do continue
-
-        keep_position := 0
-
-        for i in 0 ..< len(group.tracks) {
-            if !slice.contains(manager.selected_tracks[:], group.tracks[i]) {
-                if keep_position != i {
-                    group.tracks[keep_position] = group.tracks[i]
-                }
-                keep_position += 1
-            }
-        }
-
-        resize(&group.tracks, keep_position)
+        keep_if(&group.tracks, manager, proc(track: ^reaper.MediaTrack, manager: ^Track_Manager) -> bool {
+            return !slice.contains(manager.selected_tracks[:], track)
+        })
     }
 }
 
@@ -121,27 +121,25 @@ select_tracks_of_selected_groups :: proc(manager: ^Track_Manager) {
     }
 }
 
-update_track_manager :: proc(manager: ^Track_Manager) {
-    reaper.PreventUIRefresh(1)
-
-    // Update selected tracks.
+update_selected_tracks :: proc(manager: ^Track_Manager) {
     clear(&manager.selected_tracks)
     count := reaper.CountSelectedTracks(manager.project)
     for i in 0 ..< count {
         append(&manager.selected_tracks, reaper.GetSelectedTrack(manager.project, i))
     }
+}
 
-    update_track_groups(manager)
-    update_right_click_menu(manager)
-    update_box_select(manager)
+remove_invalid_tracks_from_groups :: proc(manager: ^Track_Manager) {
+    for group in manager.groups {
+        if len(group.tracks) == 0 do continue
 
-    if gui.key_pressed(.A) do add_selected_tracks_to_selected_groups(manager)
-    if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
-    if gui.key_pressed(.L) do toggle_lock_movement(manager)
-    if gui.key_pressed(.C) do center_groups(manager)
-    if !gui.key_down(.Left_Control) && gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
+        keep_if(&group.tracks, manager, proc(track: ^reaper.MediaTrack, manager: ^Track_Manager) -> bool {
+            return reaper.ValidatePtr2(manager.project, track, "MediaTrack*")
+        })
+    }
+}
 
-    // Update track visibility.
+update_track_visibility :: proc(manager: ^Track_Manager) {
     tracks: [dynamic]^reaper.MediaTrack
     defer delete(tracks)
 
@@ -173,6 +171,25 @@ update_track_manager :: proc(manager: ^Track_Manager) {
             reaper.SetTrackSelected(track, false)
         }
     }
+}
+
+update_track_manager :: proc(manager: ^Track_Manager) {
+    reaper.PreventUIRefresh(1)
+
+    remove_invalid_tracks_from_groups(manager)
+
+    update_selected_tracks(manager)
+    update_track_groups(manager)
+    update_right_click_menu(manager)
+    update_box_select(manager)
+
+    if gui.key_pressed(.A) do add_selected_tracks_to_selected_groups(manager)
+    if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
+    if gui.key_pressed(.L) do toggle_lock_movement(manager)
+    if gui.key_pressed(.C) do center_groups(manager)
+    if !gui.key_down(.Left_Control) && gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
+
+    update_track_visibility(manager)
 
     reaper.PreventUIRefresh(-1)
 }
