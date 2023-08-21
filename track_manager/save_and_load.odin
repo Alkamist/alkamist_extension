@@ -24,7 +24,7 @@ load_state :: proc(ctx: ^reaper.ProjectStateContext) {
     for {
         advance_line(&parser)
         if parser.is_done {
-            return
+            break
         }
 
         if is_empty_line(&parser) {
@@ -98,9 +98,15 @@ save_state :: proc(ctx: ^reaper.ProjectStateContext) {
         return
     }
 
+    if len(manager.groups) == 0 {
+        return
+    }
+
+    add_line(ctx, "<ALKAMISTTRACKMANAGER")
     for group in manager.groups {
         save_group_state(ctx, group)
     }
+    add_line(ctx, ">")
 }
 
 save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: ^Track_Group) {

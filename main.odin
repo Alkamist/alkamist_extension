@@ -22,21 +22,17 @@ project_config_extension := reaper.project_config_extension_t{
 
         if line_tokens[0] == "<ALKAMISTTRACKMANAGER" {
             track_manager.load_state(ctx)
+            return true
         }
 
-        return true
+        return false
     },
     SaveExtensionConfig = proc "c" (ctx: ^reaper.ProjectStateContext, isUndo: bool, reg: ^reaper.project_config_extension_t) {
         if isUndo {
             return
         }
-
         context = shared.main_context
-
-        shared.add_line(ctx, "<ALKAMISTTRACKMANAGER")
         track_manager.save_state(ctx)
-        shared.add_line(ctx, ">")
-
     },
     BeginLoadProjectState = proc "c" (isUndo: bool, reg: ^reaper.project_config_extension_t) {
         context = shared.main_context
