@@ -32,21 +32,21 @@ debug :: proc(format: string, args: ..any) {
     reaper.ShowConsoleMsg(msg_cstring)
 }
 
-when ODIN_DEBUG {
 check_for_memory_issues :: proc() {
-    if len(track.allocation_map) > 0 {
-        debug("=== %v allocations not freed: ===\n", len(track.allocation_map))
-        for _, entry in track.allocation_map {
-            debug("- %v bytes @ %v\n", entry.size, entry.location)
+    when ODIN_DEBUG {
+        if len(track.allocation_map) > 0 {
+            debug("=== %v allocations not freed: ===\n", len(track.allocation_map))
+            for _, entry in track.allocation_map {
+                debug("- %v bytes @ %v\n", entry.size, entry.location)
+            }
+        }
+        if len(track.bad_free_array) > 0 {
+            debug("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+            for entry in track.bad_free_array {
+                debug("- %p @ %v\n", entry.memory, entry.location)
+            }
         }
     }
-    if len(track.bad_free_array) > 0 {
-        debug("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-        for entry in track.bad_free_array {
-            debug("- %p @ %v\n", entry.memory, entry.location)
-        }
-    }
-}
 }
 
 load_tracks_from_guid_strings :: proc(tracks: ^[dynamic]^reaper.MediaTrack, project: ^reaper.ReaProject, guid_strings: []string) {
