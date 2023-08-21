@@ -104,7 +104,7 @@ center_groups :: proc(manager: ^Track_Manager) {
     }
 
     center := top_left + (bottom_right - top_left) * 0.5
-    view_center := gui.window_size() * 0.5
+    view_center := gui.window_size(&window) * 0.5
 
     offset := gui.pixel_align(view_center - center)
 
