@@ -40,7 +40,7 @@ load_state :: proc(ctx: ^reaper.ProjectStateContext) {
 
 parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
     group := new(Track_Group)
-    group^ = init_track_group()
+    group^ = make_track_group()
 
     nest_start := parser.nest_level
 

@@ -50,7 +50,7 @@ reset_track_manager :: proc(manager: ^Track_Manager) {
 
 add_new_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) {
     group := new(Track_Group)
-    group^ = init_track_group()
+    group^ = make_track_group()
     group.name = name
     group.position = position
     append(&manager.groups, group)

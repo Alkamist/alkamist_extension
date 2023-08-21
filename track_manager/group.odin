@@ -19,10 +19,10 @@ Track_Group :: struct {
     position_when_drag_started: Vec2,
 }
 
-init_track_group :: proc() -> Track_Group {
+make_track_group :: proc() -> Track_Group {
     return {
-        name_text = widgets.init_text(&consola),
-        button_state = widgets.init_button(),
+        name_text = widgets.make_text(&consola),
+        button_state = widgets.make_button(),
     }
 }
 

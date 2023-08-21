@@ -15,9 +15,9 @@ import "../../reaper"
 
 BACKGROUND_COLOR :: Color{0.2, 0.2, 0.2, 1}
 
-consola := gui.init_font("Consola", #load("../consola.ttf"))
+consola := gui.make_font("Consola", #load("../consola.ttf"))
 
-window := gui.init_window(
+window := gui.make_window(
     title = "Track Manager",
     position = {200, 200},
     background_color = BACKGROUND_COLOR,
