@@ -50,13 +50,16 @@ parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
         switch parser.line_tokens[0] {
         case "NAME":
             group.name = get_string_field(parser)
+
         case "POSITION":
             group.position = get_vec2_field(parser)
+
         case "ISSELECTED":
             group.is_selected = cast(bool)get_int_field(parser)
 
         case "<TRACKGUIDS":
             guid_strings: [dynamic]string
+            defer delete(guid_strings)
 
             // The strings are cloned and need to be cleaned up.
             defer for guid_string in guid_strings {

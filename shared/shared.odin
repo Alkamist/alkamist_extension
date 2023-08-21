@@ -1,12 +1,17 @@
 package shared
 
 import "core:fmt"
+import "core:mem"
 import "core:slice"
 import "core:strings"
+import "core:runtime"
 import "../../gui"
 import "../../reaper"
 
 Vec2 :: gui.Vec2
+
+track: mem.Tracking_Allocator
+main_context: runtime.Context
 
 save_requested := false
 
@@ -25,6 +30,23 @@ debug :: proc(format: string, args: ..any) {
     defer delete(msg_cstring)
 
     reaper.ShowConsoleMsg(msg_cstring)
+}
+
+when ODIN_DEBUG {
+check_for_memory_issues :: proc() {
+    if len(track.allocation_map) > 0 {
+        debug("=== %v allocations not freed: ===\n", len(track.allocation_map))
+        for _, entry in track.allocation_map {
+            debug("- %v bytes @ %v\n", entry.size, entry.location)
+        }
+    }
+    if len(track.bad_free_array) > 0 {
+        debug("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+        for entry in track.bad_free_array {
+            debug("- %p @ %v\n", entry.memory, entry.location)
+        }
+    }
+}
 }
 
 load_tracks_from_guid_strings :: proc(tracks: ^[dynamic]^reaper.MediaTrack, project: ^reaper.ReaProject, guid_strings: []string) {

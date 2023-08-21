@@ -8,7 +8,11 @@ import "../shared"
 import "../../gui"
 import "../../reaper"
 
+Vec2 :: gui.Vec2
+Color :: gui.Color
+
 debug :: shared.debug
+check_for_memory_issues :: shared.check_for_memory_issues
 add_line :: shared.add_line
 add_linef :: shared.add_linef
 get_line :: shared.get_line

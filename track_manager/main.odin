@@ -13,9 +13,6 @@ import "../../reaper"
 
 
 
-Vec2 :: gui.Vec2
-Color :: gui.Color
-
 BACKGROUND_COLOR :: Color{0.2, 0.2, 0.2, 1}
 
 consola := gui.init_font("Consola", #load("../consola.ttf"))
@@ -60,12 +57,6 @@ on_frame :: proc() {
         gui.request_window_close(&window)
     }
 
-    // if gui.key_pressed(.T) {
-    //     reaper.Undo_BeginBlock2(nil)
-    //     reaper.Undo_EndBlock2(nil, "Alkamist Test", reaper.UNDO_STATE_MISCCFG)
-    //     // reaper.Undo_OnStateChangeEx2(nil, "Alkamist Test", reaper.UNDO_STATE_MISCCFG, -1)
-    // }
-
     // if gui.key_pressed(.Enter) {
     //     // Temporary test groups.
     //     position := Vec2{50, 50}
@@ -76,6 +67,12 @@ on_frame :: proc() {
     //     add_new_track_group(manager, "Strings", position); position += {0, 30}
     //     add_new_track_group(manager, "Brass", position);   position += {0, 30}
     // }
+
+    when ODIN_DEBUG {
+        if gui.key_pressed(.M) {
+            check_for_memory_issues()
+        }
+    }
 }
 
 init :: proc() {

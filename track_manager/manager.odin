@@ -119,6 +119,7 @@ select_tracks_of_selected_groups :: proc(manager: ^Track_Manager) {
             select_tracks_of_group(group)
         }
     }
+    reaper.MarkProjectDirty(manager.project)
 }
 
 update_selected_tracks :: proc(manager: ^Track_Manager) {
@@ -164,11 +165,14 @@ update_track_visibility :: proc(manager: ^Track_Manager) {
 
         if track_should_be_visible && !track_is_visible {
             set_track_visible(track, true)
+            reaper.MarkProjectDirty(manager.project)
+
         } else if !track_should_be_visible && track_is_visible {
             set_track_visible(track, false)
 
             // Unselect tracks that are hidden by the manager.
             reaper.SetTrackSelected(track, false)
+            reaper.MarkProjectDirty(manager.project)
         }
     }
 }

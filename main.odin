@@ -1,6 +1,7 @@
 package main
 
 import "core:c"
+import "core:mem"
 import "core:strings"
 import "core:runtime"
 import "../gui"
@@ -8,11 +9,9 @@ import "../reaper"
 import "shared"
 import "track_manager"
 
-main_context: runtime.Context
-
 project_config_extension := reaper.project_config_extension_t{
     ProcessExtensionLine = proc "c" (line: cstring, ctx: ^reaper.ProjectStateContext, isUndo: bool, reg: ^reaper.project_config_extension_t) -> bool {
-        context = main_context
+        context = shared.main_context
 
         line_tokens := strings.split(cast(string)line, " ")
         defer delete(line_tokens)
@@ -32,7 +31,7 @@ project_config_extension := reaper.project_config_extension_t{
             return
         }
 
-        context = main_context
+        context = shared.main_context
 
         shared.add_line(ctx, "<ALKAMISTTRACKMANAGER")
         track_manager.save_state(ctx)
@@ -40,7 +39,7 @@ project_config_extension := reaper.project_config_extension_t{
 
     },
     BeginLoadProjectState = proc "c" (isUndo: bool, reg: ^reaper.project_config_extension_t) {
-        context = main_context
+        context = shared.main_context
         track_manager.pre_load()
     },
     userData = nil,
@@ -51,6 +50,8 @@ reaper_extension_main :: proc() {
 
     reaper.plugin_info.Register("projectconfig", &project_config_extension)
 
+    track_manager.init()
+
     reaper.add_timer(proc() {
         gui.update()
         if shared.save_requested {
@@ -58,14 +59,19 @@ reaper_extension_main :: proc() {
             shared.save_requested = false
         }
     })
-
-    track_manager.init()
 }
 
 @export
 ReaperPluginEntry :: proc "c" (hInst: rawptr, rec: ^reaper.plugin_info_t) -> c.int {
-    main_context = runtime.default_context()
-    context = main_context
+    context = runtime.default_context()
+
+    when ODIN_DEBUG {
+        mem.tracking_allocator_init(&shared.track, context.allocator)
+        context.allocator = mem.tracking_allocator(&shared.track)
+    }
+
+    shared.main_context = context
+
     if rec != nil {
         reaper.plugin_info = rec
         reaper.load_api_functions()
