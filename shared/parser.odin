@@ -1,6 +1,7 @@
 package shared
 
 import "core:fmt"
+import "core:mem"
 import "core:strings"
 import "core:strconv"
 import "../../reaper"
@@ -13,33 +14,29 @@ Project_State_Parser :: struct {
     nest_level: int,
 }
 
-add_line :: proc(ctx: ^reaper.ProjectStateContext, line: string) {
-    line_cstring := strings.clone_to_cstring(line)
-    defer delete(line_cstring)
+init_project_state_parser :: proc(
+    parser: ^Project_State_Parser,
+    ctx: ^reaper.ProjectStateContext,
+) -> ^Project_State_Parser {
+    parser.ctx = ctx
+    parser.line_tokens = make([dynamic]string, context.temp_allocator)
+    return parser
+}
 
-    reaper.ProjectStateContext_AddLine(ctx, line_cstring)
+add_line :: proc(ctx: ^reaper.ProjectStateContext, line: string) {
+    reaper.ProjectStateContext_AddLine(ctx, strings.clone_to_cstring(line, context.temp_allocator))
 }
 
 add_linef :: proc(ctx: ^reaper.ProjectStateContext, format: string, args: ..any) {
-    line_formatted := fmt.aprintf(format, ..args)
-    defer delete(line_formatted)
-
-    line_cstring := strings.clone_to_cstring(line_formatted)
-    defer delete(line_cstring)
-
-    reaper.ProjectStateContext_AddLine(ctx, line_cstring)
+    line_formatted := fmt.tprintf(format, ..args)
+    reaper.ProjectStateContext_AddLine(ctx, strings.clone_to_cstring(line_formatted, context.temp_allocator))
 }
 
 get_line :: proc(ctx: ^reaper.ProjectStateContext, backing_buffer: []byte) -> (result: string, ok: bool) {
     if reaper.ProjectStateContext_GetLine(ctx, &backing_buffer[0], i32(len(backing_buffer))) != 0 {
         return "", false
     }
-
     return strings.trim_null(cast(string)backing_buffer[:]), true
-}
-
-destroy_project_state_parser :: proc(parser: ^Project_State_Parser) {
-    delete(parser.line_tokens)
 }
 
 is_empty_line :: proc(parser: ^Project_State_Parser) -> bool {
@@ -71,11 +68,12 @@ advance_line :: proc(parser: ^Project_State_Parser) {
     }
 }
 
-get_string_field :: proc(parser: ^Project_State_Parser) -> string {
+// Clones the string with the provided allocator.
+get_string_field :: proc(parser: ^Project_State_Parser, allocator := context.allocator) -> string {
     if len(parser.line_tokens) < 2 {
         return ""
     }
-    return strings.clone(parser.line_tokens[1])
+    return strings.clone(parser.line_tokens[1], allocator)
 }
 
 get_f32_field :: proc(parser: ^Project_State_Parser) -> f32 {

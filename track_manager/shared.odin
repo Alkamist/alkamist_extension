@@ -12,14 +12,13 @@ Vec2 :: gui.Vec2
 Color :: gui.Color
 
 debug :: shared.debug
-check_for_memory_issues :: shared.check_for_memory_issues
 add_line :: shared.add_line
 add_linef :: shared.add_linef
 get_line :: shared.get_line
 save_project :: shared.save_project
 load_tracks_from_guid_strings :: shared.load_tracks_from_guid_strings
 Project_State_Parser :: shared.Project_State_Parser
-destroy_project_state_parser :: shared.destroy_project_state_parser
+init_project_state_parser :: shared.init_project_state_parser
 is_empty_line :: shared.is_empty_line
 advance_line :: shared.advance_line
 get_string_field :: shared.get_string_field

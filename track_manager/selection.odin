@@ -72,8 +72,7 @@ update_box_select :: proc(manager: ^Track_Manager) {
         if gui.mouse_released(.Right) {
             box_select_rect := gui.Rect{position, size}
 
-            groups_touched: [dynamic]^Track_Group
-            defer delete(groups_touched)
+            groups_touched := make([dynamic]^Track_Group, window.frame_allocator)
 
             for group in manager.groups {
                 group_rect := gui.Rect{group.position, group.size}

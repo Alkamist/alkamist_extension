@@ -10,9 +10,10 @@ import "../../reaper"
 
 Vec2 :: gui.Vec2
 
-track: mem.Tracking_Allocator
-main_context: runtime.Context
+plugin_info: ^reaper.plugin_info_t
 
+main_context: runtime.Context
+consola := gui.Font{"Consola", #load("../consola.ttf")}
 save_requested := false
 
 save_project :: proc() {
@@ -20,42 +21,16 @@ save_project :: proc() {
 }
 
 debug :: proc(format: string, args: ..any) {
-    msg := fmt.aprintf(format, ..args)
-    defer delete(msg)
-
-    msg_with_newline := strings.concatenate({strings.trim_null(cast(string)msg[:]), "\n"})
-    defer delete(msg_with_newline)
-
-    msg_cstring := strings.clone_to_cstring(msg_with_newline)
-    defer delete(msg_cstring)
-
-    reaper.ShowConsoleMsg(msg_cstring)
-}
-
-check_for_memory_issues :: proc() {
-    when ODIN_DEBUG {
-        if len(track.allocation_map) > 0 {
-            debug("=== %v allocations not freed: ===\n", len(track.allocation_map))
-            for _, entry in track.allocation_map {
-                debug("- %v bytes @ %v\n", entry.size, entry.location)
-            }
-        }
-        if len(track.bad_free_array) > 0 {
-            debug("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-            for entry in track.bad_free_array {
-                debug("- %p @ %v\n", entry.memory, entry.location)
-            }
-        }
-    }
+    msg := fmt.tprintf(format, ..args)
+    msg_with_newline := strings.concatenate({strings.trim_null(cast(string)msg[:]), "\n"}, context.temp_allocator)
+    reaper.ShowConsoleMsg(strings.clone_to_cstring(msg_with_newline, context.temp_allocator))
 }
 
 load_tracks_from_guid_strings :: proc(tracks: ^[dynamic]^reaper.MediaTrack, project: ^reaper.ReaProject, guid_strings: []string) {
-    guids: [dynamic]reaper.GUID
-    defer delete(guids)
+    guids := make([dynamic]reaper.GUID, context.temp_allocator)
 
     for guid_string in guid_strings {
-        guid_cstring := strings.clone_to_cstring(guid_string)
-        defer delete(guid_cstring)
+        guid_cstring := strings.clone_to_cstring(guid_string, context.temp_allocator)
 
         guid: reaper.GUID
         reaper.stringToGuid(guid_cstring, &guid)
@@ -76,13 +51,10 @@ load_tracks_from_guid_strings :: proc(tracks: ^[dynamic]^reaper.MediaTrack, proj
 }
 
 format_f32_for_storage :: proc(value: f32) -> string {
-    value_string := fmt.aprintf("%f", value)
-    defer delete(value_string)
-
+    value_string := fmt.tprintf("%f", value)
     no_zeros := strings.trim_right(value_string, "0")
     no_dot := strings.trim_right(no_zeros, ".")
-
-    return strings.clone(no_dot)
+    return no_dot
 }
 
 keep_if :: proc{

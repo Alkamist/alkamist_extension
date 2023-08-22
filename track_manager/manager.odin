@@ -22,13 +22,6 @@ Track_Manager :: struct {
     mouse_position_when_drag_started: Vec2,
 }
 
-init_track_manager :: proc(project: ^reaper.ReaProject) -> Track_Manager {
-    return {
-        project = project,
-        right_click_menu = init_right_click_menu(),
-    }
-}
-
 destroy_track_manager :: proc(manager: ^Track_Manager) {
     delete(manager.selected_tracks)
 
@@ -50,7 +43,7 @@ reset_track_manager :: proc(manager: ^Track_Manager) {
 
 add_new_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) {
     group := new(Track_Group)
-    group^ = make_track_group()
+    init_track_group(group)
     group.name = name
     group.position = position
     append(&manager.groups, group)
@@ -141,8 +134,7 @@ remove_invalid_tracks_from_groups :: proc(manager: ^Track_Manager) {
 }
 
 update_track_visibility :: proc(manager: ^Track_Manager) {
-    tracks: [dynamic]^reaper.MediaTrack
-    defer delete(tracks)
+    tracks := make([dynamic]^reaper.MediaTrack, window.frame_allocator)
 
     for group in manager.groups {
         for track in group.tracks {

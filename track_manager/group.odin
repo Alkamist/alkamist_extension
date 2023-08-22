@@ -19,11 +19,10 @@ Track_Group :: struct {
     position_when_drag_started: Vec2,
 }
 
-make_track_group :: proc() -> Track_Group {
-    return {
-        name_text = widgets.make_text(&consola),
-        button_state = widgets.make_button(),
-    }
+init_track_group :: proc(group: ^Track_Group) -> ^Track_Group {
+    widgets.init_text(&group.name_text)
+    widgets.init_button(&group.button_state)
+    return group
 }
 
 destroy_track_group :: proc(group: ^Track_Group) {
@@ -143,8 +142,7 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 
     // Bring selected groups to front on group left click interaction.
     if group_button_pressed {
-        selected_groups: [dynamic]^Track_Group
-        defer delete(selected_groups)
+        selected_groups := make([dynamic]^Track_Group, window.frame_allocator)
 
         for group in manager.groups {
             if group.is_selected {

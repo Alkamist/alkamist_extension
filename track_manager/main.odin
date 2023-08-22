@@ -3,6 +3,7 @@ package track_manager
 import "core:fmt"
 import "core:strings"
 import "core:strconv"
+import "../shared"
 import "../../gui"
 import "../../reaper"
 
@@ -15,23 +16,14 @@ import "../../reaper"
 
 BACKGROUND_COLOR :: Color{0.2, 0.2, 0.2, 1}
 
-consola := gui.make_font("Consola", #load("../consola.ttf"))
-
-window := gui.make_window(
-    title = "Track Manager",
-    position = {200, 200},
-    background_color = BACKGROUND_COLOR,
-    child_kind = .Transient,
-    on_frame = on_frame,
-)
-
+window: gui.Window
 track_managers: map[^reaper.ReaProject]^Track_Manager
 
 get_track_manager :: proc(project: ^reaper.ReaProject) -> ^Track_Manager {
     manager, exists := track_managers[project]
     if !exists {
         manager = new(Track_Manager)
-        manager^ = init_track_manager(project)
+        manager.project = project
         track_managers[project] = manager
     }
     return manager
@@ -67,15 +59,17 @@ on_frame :: proc() {
     //     add_new_track_group(manager, "Strings", position); position += {0, 30}
     //     add_new_track_group(manager, "Brass", position);   position += {0, 30}
     // }
-
-    when ODIN_DEBUG {
-        if gui.key_pressed(.M) {
-            check_for_memory_issues()
-        }
-    }
 }
 
 init :: proc() {
+    gui.init_window(
+        &window,
+        title = "Track Manager",
+        position = {200, 200},
+        background_color = BACKGROUND_COLOR,
+        child_kind = .Transient,
+        on_frame = on_frame,
+    )
     load_window_position_and_size()
 }
 
@@ -85,6 +79,6 @@ run :: proc() {
         return
     }
 
-    gui.set_window_parent(&window, reaper.window_handle())
+    gui.set_window_parent(&window, shared.plugin_info.hwnd_main)
     gui.open_window(&window)
 }

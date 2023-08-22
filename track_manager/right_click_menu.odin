@@ -29,12 +29,6 @@ Right_Click_Menu :: struct {
     button_state: widgets.Button,
 }
 
-init_right_click_menu :: proc() -> Right_Click_Menu {
-    return {
-        button_state = widgets.make_button(),
-    }
-}
-
 update_right_click_menu :: proc(manager: ^Track_Manager) {
     menu := &manager.right_click_menu
 
@@ -65,12 +59,7 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     // Add menu text every frame.
     item_texts: [len(right_click_menu_items)]widgets.Text
     for i in 0 ..< len(item_texts) {
-        item_texts[i] = widgets.make_text(&consola)
-    }
-
-    // Clean up menu text every frame.
-    defer for text in &item_texts {
-        widgets.destroy_text(&text)
+        widgets.init_text(&item_texts[i], allocator = window.frame_allocator)
     }
 
     PADDING :: 3

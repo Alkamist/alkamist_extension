@@ -16,10 +16,8 @@ load_state :: proc(ctx: ^reaper.ProjectStateContext) {
     project := reaper.GetCurrentProjectInLoadSave()
     manager := get_track_manager(project)
 
-    parser := Project_State_Parser{
-        ctx = ctx,
-    }
-    defer destroy_project_state_parser(&parser)
+    parser: Project_State_Parser
+    init_project_state_parser(&parser, ctx)
 
     for {
         advance_line(&parser)
@@ -40,7 +38,7 @@ load_state :: proc(ctx: ^reaper.ProjectStateContext) {
 
 parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
     group := new(Track_Group)
-    group^ = make_track_group()
+    init_track_group(group)
 
     nest_start := parser.nest_level
 
@@ -58,14 +56,7 @@ parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
             group.is_selected = cast(bool)get_int_field(parser)
 
         case "<TRACKGUIDS":
-            guid_strings: [dynamic]string
-            defer delete(guid_strings)
-
-            // The strings are cloned and need to be cleaned up.
-            defer for guid_string in guid_strings {
-                delete(guid_string)
-            }
-
+            guid_strings := make([dynamic]string, context.temp_allocator)
             track_guid_nest_start := parser.nest_level
 
             for parser.nest_level >= track_guid_nest_start {
@@ -74,9 +65,9 @@ parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
                     continue
                 }
 
-                // Need to clone here because the parser stores
-                // line tokens in a temporary buffer.
-                guid_string := strings.clone(parser.line_tokens[0])
+                // Need to clone here because the parser stores line tokens
+                // in a temporary buffer that gets overwritten each line.
+                guid_string := strings.clone(parser.line_tokens[0], context.temp_allocator)
 
                 append(&guid_strings, guid_string)
             }
@@ -111,14 +102,9 @@ save_state :: proc(ctx: ^reaper.ProjectStateContext) {
 
 save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: ^Track_Group) {
     add_line(ctx, "<GROUP")
+
     add_linef(ctx, "NAME %s", group.name)
-
-    x_string := format_f32_for_storage(group.position.x)
-    defer delete(x_string)
-    y_string := format_f32_for_storage(group.position.y)
-    defer delete(y_string)
-    add_linef(ctx, "POSITION %s %s", x_string, y_string)
-
+    add_linef(ctx, "POSITION %s %s", format_f32_for_storage(group.position.x), format_f32_for_storage(group.position.y))
     add_linef(ctx, "ISSELECTED %d", cast(int)group.is_selected)
 
     add_line(ctx, "<TRACKGUIDS")
@@ -137,28 +123,20 @@ save_window_position_and_size :: proc() {
     size := gui.window_size(&window)
 
     x := format_f32_for_storage(position.x)
-    x_cstring := strings.clone_to_cstring(x)
+    x_cstring := strings.clone_to_cstring(x, context.temp_allocator)
     reaper.SetExtState("Alkamist_Track_Manager", "window_x", x_cstring, true)
-    delete(x)
-    delete(x_cstring)
 
     y := format_f32_for_storage(position.y)
-    y_cstring := strings.clone_to_cstring(y)
+    y_cstring := strings.clone_to_cstring(y, context.temp_allocator)
     reaper.SetExtState("Alkamist_Track_Manager", "window_y", y_cstring, true)
-    delete(y)
-    delete(y_cstring)
 
     width := format_f32_for_storage(size.x)
-    width_cstring := strings.clone_to_cstring(width)
+    width_cstring := strings.clone_to_cstring(width, context.temp_allocator)
     reaper.SetExtState("Alkamist_Track_Manager", "window_width", width_cstring, true)
-    delete(width)
-    delete(width_cstring)
 
     height := format_f32_for_storage(size.y)
-    height_cstring := strings.clone_to_cstring(height)
+    height_cstring := strings.clone_to_cstring(height, context.temp_allocator)
     reaper.SetExtState("Alkamist_Track_Manager", "window_height", height_cstring, true)
-    delete(height)
-    delete(height_cstring)
 }
 
 load_window_position_and_size :: proc() {
