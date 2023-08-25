@@ -44,6 +44,14 @@ group_selection_logic :: proc(manager: ^Track_Manager, groups: []^Track_Group, k
 
 update_box_select :: proc(manager: ^Track_Manager) {
     box_select := &manager.box_select
+
+    if manager.editor_disabled {
+        box_select.is_active = false
+        box_select.start = {0, 0}
+        box_select.finish = {0, 0}
+        return
+    }
+
     mouse_position := gui.mouse_position()
 
     if gui.mouse_pressed(.Right) {

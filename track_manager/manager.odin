@@ -12,6 +12,7 @@ Track_Manager :: struct {
     selected_tracks: [dynamic]^reaper.MediaTrack,
     groups: [dynamic]^Track_Group,
 
+    editor_disabled: bool,
     movement_is_locked: bool,
     group_is_hovered: bool,
 
@@ -20,6 +21,8 @@ Track_Manager :: struct {
 
     is_dragging_groups: bool,
     mouse_position_when_drag_started: Vec2,
+
+    group_to_rename: ^Track_Group,
 }
 
 destroy_track_manager :: proc(manager: ^Track_Manager) {
@@ -39,14 +42,6 @@ reset_track_manager :: proc(manager: ^Track_Manager) {
         free(group)
     }
     clear(&manager.groups)
-}
-
-add_new_track_group :: proc(manager: ^Track_Manager, name: string, position: Vec2) {
-    group := new(Track_Group)
-    init_track_group(group)
-    group.name = name
-    group.position = position
-    append(&manager.groups, group)
 }
 
 add_selected_tracks_to_selected_groups :: proc(manager: ^Track_Manager) {
@@ -173,17 +168,35 @@ update_track_manager :: proc(manager: ^Track_Manager) {
     reaper.PreventUIRefresh(1)
 
     remove_invalid_tracks_from_groups(manager)
-
     update_selected_tracks(manager)
+
+    if manager.group_to_rename != nil {
+        if gui.key_pressed(.Enter) {
+            manager.group_to_rename = nil
+        }
+    } else {
+        if gui.key_pressed(.Enter) {
+            group := new(Track_Group)
+            init_track_group(group)
+            group.position = gui.mouse_position()
+            append(&manager.groups, group)
+            manager.group_to_rename = group
+        }
+    }
+
+    manager.editor_disabled = manager.group_to_rename != nil
+
     update_track_groups(manager)
     update_right_click_menu(manager)
     update_box_select(manager)
 
-    if gui.key_pressed(.A) do add_selected_tracks_to_selected_groups(manager)
-    if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
-    if gui.key_pressed(.L) do toggle_lock_movement(manager)
-    if gui.key_pressed(.C) do center_groups(manager)
-    if !gui.key_down(.Left_Control) && gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
+    if !manager.editor_disabled {
+        if gui.key_pressed(.A) do add_selected_tracks_to_selected_groups(manager)
+        if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
+        if gui.key_pressed(.L) do toggle_lock_movement(manager)
+        if gui.key_pressed(.C) do center_groups(manager)
+        if !gui.key_down(.Left_Control) && gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
+    }
 
     update_track_visibility(manager)
 

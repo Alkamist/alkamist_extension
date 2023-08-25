@@ -31,8 +31,14 @@ Right_Click_Menu :: struct {
 
 update_right_click_menu :: proc(manager: ^Track_Manager) {
     menu := &manager.right_click_menu
-
     menu.opened_this_frame = false
+
+    if manager.editor_disabled {
+        menu.click_start = {0, 0}
+        menu.is_open = false
+        menu.opened_this_frame = false
+        return
+    }
 
     // Handle the logic for opening the menu.
     if gui.mouse_pressed(.Right) {
@@ -73,7 +79,7 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     for text, i in &item_texts {
         item := right_click_menu_items[i]
 
-        text.data = item.name
+        widgets.set_text(&text, item.name)
         text.position = text_position
 
         widgets.update_text(&text)

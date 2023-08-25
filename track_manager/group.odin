@@ -6,7 +6,6 @@ import "../../gui/widgets"
 import "../../reaper"
 
 Track_Group :: struct {
-    name: string,
     position: Vec2,
     size: Vec2,
     is_selected: bool,
@@ -26,7 +25,6 @@ init_track_group :: proc(group: ^Track_Group) -> ^Track_Group {
 }
 
 destroy_track_group :: proc(group: ^Track_Group) {
-    delete(group.name)
     delete(group.tracks)
     widgets.destroy_text(&group.name_text)
 }
@@ -38,6 +36,11 @@ select_tracks_of_group :: proc(group: ^Track_Group) {
 }
 
 process_dragging :: proc(manager: ^Track_Manager) {
+    if manager.editor_disabled {
+        manager.is_dragging_groups = false
+        return
+    }
+
     if manager.is_dragging_groups && !gui.mouse_down(.Left) && !gui.mouse_down(.Middle) {
         manager.is_dragging_groups = false
     }
@@ -72,7 +75,7 @@ update_track_groups :: proc(manager: ^Track_Manager) {
     process_dragging(manager)
 
     // Clear selection when left clicking empty space.
-    if gui.mouse_pressed(.Left) && gui.get_hover() == nil {
+    if !manager.editor_disabled && gui.mouse_pressed(.Left) && gui.get_hover() == nil {
         for group in manager.groups {
             group.is_selected = false
         }
@@ -87,7 +90,6 @@ update_track_groups :: proc(manager: ^Track_Manager) {
     for group in manager.groups {
         // Update name text.
         group.name_text.position = group.position + PADDING
-        group.name_text.data = group.name
         group.name_text.color = {1, 1, 1, 1}
         widgets.update_text(&group.name_text)
 
@@ -99,7 +101,7 @@ update_track_groups :: proc(manager: ^Track_Manager) {
         widgets.update_button(&group.button_state)
 
         // Selection logic.
-        if group.button_state.pressed {
+        if !manager.editor_disabled && group.button_state.pressed {
             single_group_selection_logic(manager, group, false)
             group_button_pressed = true
         }
@@ -130,7 +132,10 @@ update_track_groups :: proc(manager: ^Track_Manager) {
             outline_rounded_rect(group.position, group.size, 3, {1, 1, 1, 0.7})
         }
 
-        // Draw group name.
+        // Draw group name text.
+        if manager.group_to_rename == group {
+            widgets.edit_text(&group.name_text)
+        }
         widgets.draw_text(&group.name_text)
 
         // Highlight when hovered.

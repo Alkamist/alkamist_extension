@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:strings"
 import "core:strconv"
 import "../../gui"
+import "../../gui/widgets"
 import "../../reaper"
 
 pre_load :: proc() {
@@ -47,7 +48,8 @@ parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
 
         switch parser.line_tokens[0] {
         case "NAME":
-            group.name = get_string_field(parser)
+            name := get_string_field(parser)
+            widgets.set_text(&group.name_text, name)
 
         case "POSITION":
             group.position = get_vec2_field(parser)
@@ -103,7 +105,7 @@ save_state :: proc(ctx: ^reaper.ProjectStateContext) {
 save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: ^Track_Group) {
     add_line(ctx, "<GROUP")
 
-    add_linef(ctx, "NAME %s", group.name)
+    add_linef(ctx, "NAME %s", widgets.to_string(&group.name_text))
     add_linef(ctx, "POSITION %s %s", format_f32_for_storage(group.position.x), format_f32_for_storage(group.position.y))
     add_linef(ctx, "ISSELECTED %d", cast(int)group.is_selected)
 

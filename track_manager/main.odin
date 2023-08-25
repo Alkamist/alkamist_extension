@@ -41,24 +41,13 @@ on_frame :: proc() {
     }
 
     // Play the project when pressing space bar.
-    if gui.key_pressed(.Space) {
+    if manager.group_to_rename == nil && gui.key_pressed(.Space) {
         reaper.Main_OnCommandEx(40044, 0, nil)
     }
 
     if gui.key_pressed(.Escape) {
         gui.request_window_close(&window)
     }
-
-    // if gui.key_pressed(.Enter) {
-    //     // Temporary test groups.
-    //     position := Vec2{50, 50}
-    //     add_new_track_group(manager, "Vocals", position);  position += {0, 30}
-    //     add_new_track_group(manager, "Drums", position);   position += {0, 30}
-    //     add_new_track_group(manager, "Guitars", position); position += {0, 30}
-    //     add_new_track_group(manager, "Bass", position);    position += {0, 30}
-    //     add_new_track_group(manager, "Strings", position); position += {0, 30}
-    //     add_new_track_group(manager, "Brass", position);   position += {0, 30}
-    // }
 }
 
 init :: proc() {

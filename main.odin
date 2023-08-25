@@ -56,6 +56,7 @@ ReaperPluginEntry :: proc "c" (hInst: rawptr, rec: ^reaper.plugin_info_t) -> c.i
         reaper_extension_main()
         return 1
     }
+
     return 0
 }
 
