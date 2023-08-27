@@ -104,7 +104,7 @@ save_state :: proc(ctx: ^reaper.ProjectStateContext) {
 save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: ^Track_Group) {
     add_line(ctx, "<GROUP")
 
-    add_linef(ctx, "NAME %s", widgets.to_string(&group.name))
+    add_linef(ctx, "NAME \"%s\"", widgets.to_string(&group.name))
     add_linef(ctx, "POSITION %s %s", format_f32_for_storage(group.position.x), format_f32_for_storage(group.position.y))
     add_linef(ctx, "ISSELECTED %d", cast(int)group.is_selected)
 

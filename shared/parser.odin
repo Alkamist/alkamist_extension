@@ -4,6 +4,7 @@ import "core:fmt"
 import "core:mem"
 import "core:strings"
 import "core:strconv"
+import "core:unicode"
 import "../../reaper"
 
 Project_State_Parser :: struct {
@@ -50,9 +51,7 @@ advance_line :: proc(parser: ^Project_State_Parser) {
         return
     }
 
-    for token in strings.split_iterator(&line, " ") {
-        append(&parser.line_tokens, token)
-    }
+    _parse_line(&parser.line_tokens, line)
 
     if parser.line_buffer[0] == '<' {
        parser.nest_level += 1
@@ -71,7 +70,7 @@ get_string_field :: proc(parser: ^Project_State_Parser, allocator := context.all
     if len(parser.line_tokens) < 2 {
         return ""
     }
-    return strings.clone(parser.line_tokens[1], allocator)
+    return strings.clone(strings.trim(parser.line_tokens[1], "\""), allocator)
 }
 
 get_f32_field :: proc(parser: ^Project_State_Parser) -> f32 {
@@ -95,5 +94,56 @@ get_vec2_field :: proc(parser: ^Project_State_Parser) -> Vec2 {
     return {
         strconv.parse_f32(parser.line_tokens[1]) or_else 0,
         strconv.parse_f32(parser.line_tokens[2]) or_else 0,
+    }
+}
+
+// Splits a line by spaces, but keeps spaces inside strings.
+// Tokens are appended to the dynamic array passed in.
+_parse_line :: proc(tokens: ^[dynamic]string, line: string) {
+    Parse_State :: enum {
+        Normal,
+        Inside_Non_String,
+        Inside_String,
+    }
+
+    state := Parse_State.Normal
+    token_start := 0
+
+    for c, i in line {
+        is_space := unicode.is_space(c)
+        is_quote := c == '\"'
+
+        just_entered_token := false
+
+        if state == .Normal {
+            if is_quote {
+                token_start = i
+                state = .Inside_String
+                just_entered_token = true
+            } else if !is_space {
+                token_start = i
+                state = .Inside_Non_String
+                just_entered_token = true
+            }
+        }
+
+        #partial switch state {
+        case .Inside_Non_String:
+            if is_space {
+                append(tokens, line[token_start:i])
+                state = .Normal
+            }
+
+        case .Inside_String:
+            if is_quote && !just_entered_token {
+                append(tokens, line[token_start:i + 1])
+                state = .Normal
+            }
+        }
+    }
+
+    if state == .Inside_Non_String {
+        append(tokens, line[token_start:len(line)])
+        return
     }
 }
