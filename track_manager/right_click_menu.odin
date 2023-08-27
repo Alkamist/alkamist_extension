@@ -15,8 +15,8 @@ right_click_menu_items := [?]Right_Click_Menu_Item{
     {"(S) Select tracks", select_tracks_of_selected_groups, nil},
     {"(C) Center all groups", center_groups, nil},
     {"(L) Lock movement", toggle_lock_movement, movement_is_locked},
-    {"(Enter) Add group", nil, nil},
-    {"(Delete) Remove groups", nil, nil},
+    {"(Enter) Add group", _create_new_group_at_right_click_menu_position, nil},
+    {"(Delete) Remove groups", open_remove_groups_prompt, nil},
 }
 
 Right_Click_Menu :: struct {
@@ -63,7 +63,6 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
 
     // Don't process the menu if it is not open.
     if !menu.is_open {
-        gui.release_hover(&menu.button_state)
         return
     }
 
@@ -153,4 +152,8 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     if !menu.opened_this_frame && (gui.mouse_pressed(.Left) || gui.mouse_pressed(.Middle) || gui.mouse_pressed(.Right)) {
         menu.is_open = false
     }
+}
+
+_create_new_group_at_right_click_menu_position :: proc(manager: ^Track_Manager) {
+    create_new_group(manager, manager.right_click_menu.position)
 }

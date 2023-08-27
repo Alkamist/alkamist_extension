@@ -14,9 +14,17 @@ Remove_Groups_Prompt :: struct{
 
 make_remove_groups_prompt :: proc() -> Remove_Groups_Prompt {
     return {
-        yes_button = widgets.make_button(size = {96, 32}),
-        no_button = widgets.make_button(size = {96, 32}),
+        yes_button = widgets.make_button(size = {70, 20}),
+        no_button = widgets.make_button(size = {70, 20}),
         text = widgets.make_text("Remove the currently selected groups?"),
+    }
+}
+
+open_remove_groups_prompt :: proc(manager: ^Track_Manager) {
+    using manager.remove_groups_prompt
+    if !is_open && !editor_disabled(manager) {
+        is_open = true
+        return
     }
 }
 
@@ -24,46 +32,98 @@ update_remove_groups_prompt :: proc(manager: ^Track_Manager) {
     using manager.remove_groups_prompt
 
     if !is_open {
-        if !editor_disabled(manager) && gui.key_pressed(.Delete) {
-            is_open = true
-        }
         return
     }
 
-    PADDING :: 3
-    SPACING :: 3
-
+    // The prompt is centered in the window.
     window_size := gui.window_size(gui.current_window())
-
-    widgets.update_text(&text)
-
-    size.x = max(text.size.x, yes_button.size.x + no_button.size.x + SPACING) + PADDING * 2
-    size.y = text.size.y + max(yes_button.size.y, no_button.size.y) + SPACING + PADDING * 2
-
+    size = {290, 128}
     position = gui.pixel_align((window_size - size) * 0.5)
 
-    text.position.x = position.x + (size.x - text.size.x) * 0.5
-    text.position.y = position.y + PADDING
-
-    middle := position + size * 0.5
-
-    yes_button.position.x = middle.x - yes_button.size.x - SPACING * 0.5
-    yes_button.position.y = text.position.y + text.size.y + SPACING
-    widgets.update_button(&yes_button)
-
-    no_button.position.x = yes_button.position.x + yes_button.size.x + SPACING
-    no_button.position.y = yes_button.position.y
-    widgets.update_button(&no_button)
-
-    fill_rounded_rect(position, size, 3, gui.lighten(BACKGROUND_COLOR, 0.1))
+    // Draw menu background.
+    menu_color := gui.lighten(BACKGROUND_COLOR, 0.1)
+    menu_color.a = 0.85
+    fill_rounded_rect(position, size, 3, menu_color)
     outline_rounded_rect(position, size, 3, {1, 1, 1, 0.3})
 
-    fill_rounded_rect(yes_button.position, yes_button.size, 3, gui.darken(BACKGROUND_COLOR, 0.3))
-    fill_rounded_rect(no_button.position, no_button.size, 3, gui.darken(BACKGROUND_COLOR, 0.3))
+    // Process yes and no buttons.
+    text_space := Rect{position, size}
 
+    yes_button_space := gui.trim_bottom(&text_space, 42)
+    no_button_space := gui.trim_right(&yes_button_space, size.x * 0.5)
+
+    yes_button.position = {
+        yes_button_space.position.x + yes_button_space.size.x - yes_button.size.x - 5,
+        yes_button_space.position.y + (yes_button_space.size.y - yes_button.size.y) * 0.5,
+    }
+    widgets.update_button(&yes_button)
+    _draw_prompt_button(&yes_button, "Yes", outline = true)
+
+    no_button.position = {
+        no_button_space.position.x + 5,
+        no_button_space.position.y + (no_button_space.size.y - no_button.size.y) * 0.5,
+    }
+    widgets.update_button(&no_button)
+    _draw_prompt_button(&no_button, "No")
+
+    // Draw prompt text.
+    widgets.update_text(&text)
+
+    extra_x := (text_space.size.x - text.size.x) * 0.5
+    gui.trim_left(&text_space, extra_x)
+    gui.trim_right(&text_space, extra_x)
+
+    extra_y := (text_space.size.y - text.size.y) * 0.5
+    gui.trim_top(&text_space, extra_y)
+    gui.trim_bottom(&text_space, extra_y)
+
+    text.position = text_space.position
     widgets.draw_text(&text)
 
-    if gui.key_pressed(.Enter) {
+    // Handle outcomes.
+    if no_button.clicked {
         is_open = false
     }
+
+    if gui.key_pressed(.Enter) || yes_button.clicked {
+        _remove_selected_groups(manager)
+        is_open = false
+    }
+}
+
+_remove_selected_groups :: proc(manager: ^Track_Manager) {
+    selected_groups := make([dynamic]^Track_Group, gui.arena_allocator())
+    for group in manager.groups {
+        if group.is_selected {
+            append(&selected_groups, group)
+        }
+    }
+
+    keep_if(&manager.groups, proc(group: ^Track_Group) -> bool {
+        return !group.is_selected
+    })
+
+    for group in selected_groups {
+        destroy_track_group(group)
+    }
+}
+
+_draw_prompt_button :: proc(button: ^widgets.Button, label: string, outline := false) {
+    fill_rounded_rect(button.position, button.size, 3, gui.darken(BACKGROUND_COLOR, 0.1))
+
+    if outline {
+        outline_rounded_rect(button.position, button.size, 3, {0.4, 0.9, 1, 0.7})
+    }
+
+    if button.is_down {
+        fill_rounded_rect(button.position, button.size, 3, {0, 0, 0, 0.04})
+    } else if gui.is_hovered(button) {
+        fill_rounded_rect(button.position, button.size, 3, {1, 1, 1, 0.04})
+    }
+
+    label_text := widgets.make_text(label, allocator = gui.arena_allocator())
+    widgets.update_text(&label_text)
+
+    label_text.position = button.position + (button.size - label_text.size) * 0.5
+    widgets.draw_text(&label_text)
 }

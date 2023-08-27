@@ -9,8 +9,6 @@ import "../../reaper"
 
 
 
-// text edit to facilitate adding groups
-// delete groups (prompt if sure)
 // group renaming
 
 

@@ -126,10 +126,11 @@ update_track_groups :: proc(manager: ^Track_Manager) {
         }
 
         // Draw group name text.
-        if manager.group_to_rename == group {
+        editing_name := manager.group_to_rename == group
+        if editing_name {
             widgets.edit_text(&group.name)
         }
-        widgets.draw_text(&group.name)
+        widgets.draw_text(&group.name, show_selection = editing_name)
 
         // Highlight when hovered.
         if !editor_disabled(manager) && gui.is_hovered(group) {
