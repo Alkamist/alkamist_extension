@@ -14,13 +14,11 @@ Project_State_Parser :: struct {
     nest_level: int,
 }
 
-init_project_state_parser :: proc(
-    parser: ^Project_State_Parser,
-    ctx: ^reaper.ProjectStateContext,
-) -> ^Project_State_Parser {
-    parser.ctx = ctx
-    parser.line_tokens = make([dynamic]string, context.temp_allocator)
-    return parser
+make_project_state_parser :: proc(ctx: ^reaper.ProjectStateContext) -> Project_State_Parser {
+    return {
+        ctx = ctx,
+        line_tokens = make([dynamic]string, context.temp_allocator),
+    }
 }
 
 add_line :: proc(ctx: ^reaper.ProjectStateContext, line: string) {

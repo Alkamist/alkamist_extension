@@ -17,8 +17,7 @@ load_state :: proc(ctx: ^reaper.ProjectStateContext) {
     project := reaper.GetCurrentProjectInLoadSave()
     manager := get_track_manager(project)
 
-    parser: Project_State_Parser
-    init_project_state_parser(&parser, ctx)
+    parser := make_project_state_parser(ctx)
 
     for {
         advance_line(&parser)
@@ -39,7 +38,7 @@ load_state :: proc(ctx: ^reaper.ProjectStateContext) {
 
 parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
     group := new(Track_Group)
-    init_track_group(group)
+    group^ = make_track_group()
 
     nest_start := parser.nest_level
 
@@ -49,7 +48,7 @@ parse_group :: proc(parser: ^Project_State_Parser, manager: ^Track_Manager) {
         switch parser.line_tokens[0] {
         case "NAME":
             name := get_string_field(parser)
-            widgets.set_text(&group.name_text, name)
+            widgets.set_text(&group.name, name)
 
         case "POSITION":
             group.position = get_vec2_field(parser)
@@ -105,7 +104,7 @@ save_state :: proc(ctx: ^reaper.ProjectStateContext) {
 save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: ^Track_Group) {
     add_line(ctx, "<GROUP")
 
-    add_linef(ctx, "NAME %s", widgets.to_string(&group.name_text))
+    add_linef(ctx, "NAME %s", widgets.to_string(&group.name))
     add_linef(ctx, "POSITION %s %s", format_f32_for_storage(group.position.x), format_f32_for_storage(group.position.y))
     add_linef(ctx, "ISSELECTED %d", cast(int)group.is_selected)
 

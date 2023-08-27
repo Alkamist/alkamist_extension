@@ -15,8 +15,8 @@ right_click_menu_items := [?]Right_Click_Menu_Item{
     {"(S) Select tracks", select_tracks_of_selected_groups, nil},
     {"(C) Center all groups", center_groups, nil},
     {"(L) Lock movement", toggle_lock_movement, movement_is_locked},
-    {"Add group", nil, nil},
-    {"Delete groups", nil, nil},
+    {"(Enter) Add group", nil, nil},
+    {"(Delete) Remove groups", nil, nil},
 }
 
 Right_Click_Menu :: struct {
@@ -25,15 +25,20 @@ Right_Click_Menu :: struct {
     is_open: bool,
     opened_this_frame: bool,
     click_start: Vec2,
-
     button_state: widgets.Button,
+}
+
+make_right_click_menu :: proc() -> Right_Click_Menu {
+    return {
+        button_state = widgets.make_button(),
+    }
 }
 
 update_right_click_menu :: proc(manager: ^Track_Manager) {
     menu := &manager.right_click_menu
     menu.opened_this_frame = false
 
-    if manager.editor_disabled {
+    if editor_disabled(manager) {
         menu.click_start = {0, 0}
         menu.is_open = false
         menu.opened_this_frame = false
@@ -65,7 +70,8 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     // Add menu text every frame.
     item_texts: [len(right_click_menu_items)]widgets.Text
     for i in 0 ..< len(item_texts) {
-        widgets.init_text(&item_texts[i], allocator = window.frame_allocator)
+        item := right_click_menu_items[i]
+        item_texts[i] = widgets.make_text(item.name, allocator = gui.arena_allocator())
     }
 
     PADDING :: 3
@@ -79,7 +85,6 @@ update_right_click_menu :: proc(manager: ^Track_Manager) {
     for text, i in &item_texts {
         item := right_click_menu_items[i]
 
-        widgets.set_text(&text, item.name)
         text.position = text_position
 
         widgets.update_text(&text)

@@ -6,27 +6,23 @@ import "../../gui/widgets"
 import "../../reaper"
 
 Track_Group :: struct {
-    position: Vec2,
-    size: Vec2,
+    using button: widgets.Button,
+    name: widgets.Text,
     is_selected: bool,
-
     tracks: [dynamic]^reaper.MediaTrack,
-
-    name_text: widgets.Text,
-    button_state: widgets.Button,
-
     position_when_drag_started: Vec2,
 }
 
-init_track_group :: proc(group: ^Track_Group) -> ^Track_Group {
-    widgets.init_text(&group.name_text)
-    widgets.init_button(&group.button_state)
-    return group
+make_track_group :: proc() -> Track_Group {
+    return {
+        name = widgets.make_text(),
+        button = widgets.make_button(),
+    }
 }
 
 destroy_track_group :: proc(group: ^Track_Group) {
     delete(group.tracks)
-    widgets.destroy_text(&group.name_text)
+    widgets.destroy_text(&group.name)
 }
 
 select_tracks_of_group :: proc(group: ^Track_Group) {
@@ -36,7 +32,7 @@ select_tracks_of_group :: proc(group: ^Track_Group) {
 }
 
 process_dragging :: proc(manager: ^Track_Manager) {
-    if manager.editor_disabled {
+    if editor_disabled(manager) {
         manager.is_dragging_groups = false
         return
     }
@@ -75,7 +71,7 @@ update_track_groups :: proc(manager: ^Track_Manager) {
     process_dragging(manager)
 
     // Clear selection when left clicking empty space.
-    if !manager.editor_disabled && gui.mouse_pressed(.Left) && gui.get_hover() == nil {
+    if !editor_disabled(manager) && gui.mouse_pressed(.Left) && gui.get_hover() == nil {
         for group in manager.groups {
             group.is_selected = false
         }
@@ -89,19 +85,16 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 
     for group in manager.groups {
         // Update name text.
-        group.name_text.position = group.position + PADDING
-        group.name_text.color = {1, 1, 1, 1}
-        widgets.update_text(&group.name_text)
+        group.name.position = group.position + PADDING
+        widgets.update_text(&group.name)
 
-        // Update sizes to fit name text.
-        group.size = group.name_text.size + PADDING * 2
-        group.button_state.position = group.position
-        group.button_state.size = group.size
+        // Update size to fit name.
+        group.size = group.name.size + PADDING * 2
 
-        widgets.update_button(&group.button_state)
+        widgets.update_button(group)
 
         // Selection logic.
-        if !manager.editor_disabled && group.button_state.pressed {
+        if !editor_disabled(manager) && group.pressed {
             single_group_selection_logic(manager, group, false)
             group_button_pressed = true
         }
@@ -134,12 +127,12 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 
         // Draw group name text.
         if manager.group_to_rename == group {
-            widgets.edit_text(&group.name_text)
+            widgets.edit_text(&group.name)
         }
-        widgets.draw_text(&group.name_text)
+        widgets.draw_text(&group.name)
 
         // Highlight when hovered.
-        if gui.is_hovered(&group.button_state) {
+        if !editor_disabled(manager) && gui.is_hovered(group) {
             manager.group_is_hovered = true
             fill_rounded_rect(group.position, group.size, 3, {1, 1, 1, 0.08})
         }
@@ -147,7 +140,7 @@ update_track_groups :: proc(manager: ^Track_Manager) {
 
     // Bring selected groups to front on group left click interaction.
     if group_button_pressed {
-        selected_groups := make([dynamic]^Track_Group, window.frame_allocator)
+        selected_groups := make([dynamic]^Track_Group, gui.arena_allocator())
 
         for group in manager.groups {
             if group.is_selected {

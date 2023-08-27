@@ -12,6 +12,11 @@ import "track_manager"
 reaper_extension_main :: proc() {
     reaper.load_api_functions(shared.plugin_info)
 
+    if gui.init() != nil {
+        reaper.ShowConsoleMsg("Failed to initialize Alkamist Extension.\n")
+        return
+    }
+
     widgets.set_default_font(&shared.consola)
 
     track_manager.init()

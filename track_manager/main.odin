@@ -11,6 +11,7 @@ import "../../reaper"
 
 // text edit to facilitate adding groups
 // delete groups (prompt if sure)
+// group renaming
 
 
 
@@ -23,7 +24,7 @@ get_track_manager :: proc(project: ^reaper.ReaProject) -> ^Track_Manager {
     manager, exists := track_managers[project]
     if !exists {
         manager = new(Track_Manager)
-        manager.project = project
+        manager^ = make_track_manager(project)
         track_managers[project] = manager
     }
     return manager
@@ -51,8 +52,7 @@ on_frame :: proc() {
 }
 
 init :: proc() {
-    gui.init_window(
-        &window,
+    window = gui.make_window(
         title = "Track Manager",
         position = {200, 200},
         background_color = BACKGROUND_COLOR,

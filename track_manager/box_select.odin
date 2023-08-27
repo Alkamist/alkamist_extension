@@ -10,42 +10,10 @@ Box_Select :: struct {
     finish: Vec2,
 }
 
-single_group_selection_logic :: proc(manager: ^Track_Manager, group: ^Track_Group, keep_selection: bool) {
-    group_selection_logic(manager, {group}, keep_selection)
-}
-
-group_selection_logic :: proc(manager: ^Track_Manager, groups: []^Track_Group, keep_selection: bool) {
-    addition := gui.key_down(.Left_Shift)
-    invert := gui.key_down(.Left_Control)
-
-    keep_selection := keep_selection || addition || invert
-
-    for group in manager.groups {
-        if group.is_selected && gui.is_hovered(&group.button_state) {
-            keep_selection = true
-            break
-        }
-    }
-
-    for group in manager.groups {
-        if !keep_selection {
-            group.is_selected = false
-        }
-    }
-
-    for group in groups {
-        if invert {
-            group.is_selected = !group.is_selected
-        } else {
-            group.is_selected = true
-        }
-    }
-}
-
 update_box_select :: proc(manager: ^Track_Manager) {
     box_select := &manager.box_select
 
-    if manager.editor_disabled {
+    if editor_disabled(manager) {
         box_select.is_active = false
         box_select.start = {0, 0}
         box_select.finish = {0, 0}
@@ -80,7 +48,7 @@ update_box_select :: proc(manager: ^Track_Manager) {
         if gui.mouse_released(.Right) {
             box_select_rect := gui.Rect{position, size}
 
-            groups_touched := make([dynamic]^Track_Group, window.frame_allocator)
+            groups_touched := make([dynamic]^Track_Group, gui.arena_allocator())
 
             for group in manager.groups {
                 group_rect := gui.Rect{group.position, group.size}

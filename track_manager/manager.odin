@@ -12,10 +12,10 @@ Track_Manager :: struct {
     selected_tracks: [dynamic]^reaper.MediaTrack,
     groups: [dynamic]^Track_Group,
 
-    editor_disabled: bool,
     movement_is_locked: bool,
     group_is_hovered: bool,
 
+    remove_groups_prompt: Remove_Groups_Prompt,
     right_click_menu: Right_Click_Menu,
     box_select: Box_Select,
 
@@ -23,6 +23,14 @@ Track_Manager :: struct {
     mouse_position_when_drag_started: Vec2,
 
     group_to_rename: ^Track_Group,
+}
+
+make_track_manager :: proc(project: ^reaper.ReaProject) -> Track_Manager {
+    return {
+        project = project,
+        remove_groups_prompt = make_remove_groups_prompt(),
+        right_click_menu = make_right_click_menu(),
+    }
 }
 
 destroy_track_manager :: proc(manager: ^Track_Manager) {
@@ -128,8 +136,40 @@ remove_invalid_tracks_from_groups :: proc(manager: ^Track_Manager) {
     }
 }
 
+single_group_selection_logic :: proc(manager: ^Track_Manager, group: ^Track_Group, keep_selection: bool) {
+    group_selection_logic(manager, {group}, keep_selection)
+}
+
+group_selection_logic :: proc(manager: ^Track_Manager, groups: []^Track_Group, keep_selection: bool) {
+    addition := gui.key_down(.Left_Shift)
+    invert := gui.key_down(.Left_Control)
+
+    keep_selection := keep_selection || addition || invert
+
+    for group in manager.groups {
+        if group.is_selected && gui.is_hovered(&group.button) {
+            keep_selection = true
+            break
+        }
+    }
+
+    for group in manager.groups {
+        if !keep_selection {
+            group.is_selected = false
+        }
+    }
+
+    for group in groups {
+        if invert {
+            group.is_selected = !group.is_selected
+        } else {
+            group.is_selected = true
+        }
+    }
+}
+
 update_track_visibility :: proc(manager: ^Track_Manager) {
-    tracks := make([dynamic]^reaper.MediaTrack, window.frame_allocator)
+    tracks := make([dynamic]^reaper.MediaTrack, gui.arena_allocator())
 
     for group in manager.groups {
         for track in group.tracks {
@@ -164,33 +204,42 @@ update_track_visibility :: proc(manager: ^Track_Manager) {
     }
 }
 
+create_new_group :: proc(manager: ^Track_Manager, position: Vec2) {
+    group := new(Track_Group)
+    group^ = make_track_group()
+    group.position = position
+    append(&manager.groups, group)
+    manager.group_to_rename = group
+}
+
+group_creation_logic :: proc(manager: ^Track_Manager) {
+    if gui.key_pressed(.Enter) {
+        if !editor_disabled(manager) && manager.group_to_rename == nil {
+            create_new_group(manager, gui.mouse_position())
+        } else {
+            manager.group_to_rename = nil
+        }
+    }
+}
+
+editor_disabled :: proc(manager: ^Track_Manager) -> bool {
+    return manager.group_to_rename != nil || manager.remove_groups_prompt.is_open
+}
+
 update_track_manager :: proc(manager: ^Track_Manager) {
     reaper.PreventUIRefresh(1)
 
     remove_invalid_tracks_from_groups(manager)
     update_selected_tracks(manager)
 
-    if manager.group_to_rename != nil {
-        if gui.key_pressed(.Enter) {
-            manager.group_to_rename = nil
-        }
-    } else {
-        if gui.key_pressed(.Enter) {
-            group := new(Track_Group)
-            init_track_group(group)
-            group.position = gui.mouse_position()
-            append(&manager.groups, group)
-            manager.group_to_rename = group
-        }
-    }
-
-    manager.editor_disabled = manager.group_to_rename != nil
-
+    group_creation_logic(manager)
     update_track_groups(manager)
     update_right_click_menu(manager)
     update_box_select(manager)
 
-    if !manager.editor_disabled {
+    update_remove_groups_prompt(manager)
+
+    if !editor_disabled(manager) {
         if gui.key_pressed(.A) do add_selected_tracks_to_selected_groups(manager)
         if gui.key_pressed(.R) do remove_selected_tracks_from_selected_groups(manager)
         if gui.key_pressed(.L) do toggle_lock_movement(manager)
