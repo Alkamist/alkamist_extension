@@ -20,8 +20,25 @@ make_remove_groups_prompt :: proc() -> Remove_Groups_Prompt {
     }
 }
 
+destroy_remove_groups_prompt :: proc(prompt: ^Remove_Groups_Prompt) {
+    widgets.destroy_text(&prompt.text)
+}
+
 open_remove_groups_prompt :: proc(manager: ^Track_Manager) {
     using manager.remove_groups_prompt
+
+    one_or_more_groups_selected := false
+    for group in manager.groups {
+        if group.is_selected {
+            one_or_more_groups_selected = true
+            break
+        }
+    }
+
+    if !one_or_more_groups_selected {
+        return
+    }
+
     if !is_open && !editor_disabled(manager) {
         is_open = true
         return
@@ -105,6 +122,7 @@ _remove_selected_groups :: proc(manager: ^Track_Manager) {
 
     for group in selected_groups {
         destroy_track_group(group)
+        free(group)
     }
 }
 

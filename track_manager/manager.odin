@@ -41,6 +41,7 @@ destroy_track_manager :: proc(manager: ^Track_Manager) {
         free(group)
     }
 
+    destroy_remove_groups_prompt(&manager.remove_groups_prompt)
     delete(manager.groups)
 }
 
