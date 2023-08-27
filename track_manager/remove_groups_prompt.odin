@@ -81,7 +81,7 @@ update_remove_groups_prompt :: proc(manager: ^Track_Manager) {
     widgets.draw_text(&text)
 
     // Handle outcomes.
-    if no_button.clicked {
+    if gui.key_pressed(.Escape) || no_button.clicked {
         is_open = false
     }
 

@@ -15,6 +15,7 @@ right_click_menu_items := [?]Right_Click_Menu_Item{
     {"(S) Select tracks", select_tracks_of_selected_groups, nil},
     {"(C) Center all groups", center_groups, nil},
     {"(L) Lock movement", toggle_lock_movement, movement_is_locked},
+    {"(F2) Rename topmost selected group", rename_topmost_selected_group, nil},
     {"(Enter) Add group", _create_new_group_at_right_click_menu_position, nil},
     {"(Delete) Remove groups", open_remove_groups_prompt, nil},
 }

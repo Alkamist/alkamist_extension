@@ -7,12 +7,6 @@ import "../shared"
 import "../../gui"
 import "../../reaper"
 
-
-
-// group renaming
-
-
-
 BACKGROUND_COLOR :: Color{0.2, 0.2, 0.2, 1}
 
 window: gui.Window
@@ -33,20 +27,6 @@ on_frame :: proc() {
     manager := get_track_manager(project)
 
     update_track_manager(manager)
-
-    // Save project when control + s pressed.
-    if gui.key_down(.Left_Control) && gui.key_pressed(.S) {
-        save_project()
-    }
-
-    // Play the project when pressing space bar.
-    if manager.group_to_rename == nil && gui.key_pressed(.Space) {
-        reaper.Main_OnCommandEx(40044, 0, nil)
-    }
-
-    if gui.key_pressed(.Escape) {
-        gui.request_window_close(&window)
-    }
 }
 
 init :: proc() {

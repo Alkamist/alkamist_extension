@@ -204,20 +204,25 @@ update_track_visibility :: proc(manager: ^Track_Manager) {
     }
 }
 
+rename_group :: proc(manager: ^Track_Manager, group: ^Track_Group) {
+    manager.group_to_rename = group
+    widgets.select_all(&group.name)
+}
+
 create_new_group :: proc(manager: ^Track_Manager, position: Vec2) {
     group := new(Track_Group)
     group^ = make_track_group()
     group.position = position
     append(&manager.groups, group)
-    manager.group_to_rename = group
+    rename_group(manager, group)
 }
 
-group_creation_logic :: proc(manager: ^Track_Manager) {
-    if gui.key_pressed(.Enter) {
-        if !editor_disabled(manager) && manager.group_to_rename == nil {
-            create_new_group(manager, gui.mouse_position())
-        } else {
-            manager.group_to_rename = nil
+rename_topmost_selected_group :: proc(manager: ^Track_Manager) {
+    for i := len(manager.groups) - 1; i >= 0; i -= 1 {
+        group := manager.groups[i]
+        if group.is_selected {
+            rename_group(manager, group)
+            return
         }
     }
 }
@@ -232,7 +237,21 @@ update_track_manager :: proc(manager: ^Track_Manager) {
     remove_invalid_tracks_from_groups(manager)
     update_selected_tracks(manager)
 
-    group_creation_logic(manager)
+    // Close window on escape if not doing other things.
+    // Needs to happen at the beginning of the frame.
+    if !editor_disabled(manager) && gui.key_pressed(.Escape) {
+        gui.request_window_close(&window)
+    }
+
+    // Pushing enter creates new groups and confirms rename.
+    if gui.key_pressed(.Enter) {
+        if !editor_disabled(manager) && manager.group_to_rename == nil {
+            create_new_group(manager, gui.mouse_position())
+        } else {
+            manager.group_to_rename = nil
+        }
+    }
+
     update_track_groups(manager)
     update_right_click_menu(manager)
     update_box_select(manager)
@@ -245,7 +264,23 @@ update_track_manager :: proc(manager: ^Track_Manager) {
         if gui.key_pressed(.L) do toggle_lock_movement(manager)
         if gui.key_pressed(.C) do center_groups(manager)
         if !gui.key_down(.Left_Control) && gui.key_pressed(.S) do select_tracks_of_selected_groups(manager)
+        if gui.key_pressed(.F2) do rename_topmost_selected_group(manager)
         if gui.key_pressed(.Delete) do open_remove_groups_prompt(manager)
+    }
+
+    // Save project when control + s pressed.
+    if gui.key_down(.Left_Control) && gui.key_pressed(.S) {
+        save_project()
+    }
+
+    // Play the project when pressing space bar.
+    if manager.group_to_rename == nil && gui.key_pressed(.Space) {
+        reaper.Main_OnCommandEx(40044, 0, nil)
+    }
+
+    // Escape stops renaming group.
+    if manager.group_to_rename != nil && gui.key_pressed(.Escape) {
+        manager.group_to_rename = nil
     }
 
     update_track_visibility(manager)
