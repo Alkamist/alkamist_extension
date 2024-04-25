@@ -1,73 +1,38 @@
 package main
 
-import "core:c"
 import "core:strings"
-import "core:runtime"
-import "../gui"
-import "../gui/widgets"
 import "../reaper"
-import "shared"
-import "track_manager"
 
-reaper_extension_main :: proc() {
-    reaper.load_api_functions(shared.plugin_info)
+update :: proc() {
+    reaper.PreventUIRefresh(1)
 
-    if gui.init() != nil {
-        reaper.ShowConsoleMsg("Failed to initialize Alkamist Extension.\n")
-        return
+    project := reaper.EnumProjects(-1, nil, 0)
+
+    manager := get_track_manager(project)
+    if window_update(&track_manager_window) {
+        track_manager_update(manager)
     }
 
-    widgets.set_default_font(&shared.consola)
+    reaper.PreventUIRefresh(-1)
+}
 
-    track_manager.init()
+init :: proc() {
+    gui_startup(update)
 
-    add_reaper_action("Alkamist: Track manager", "ALKAMIST_TRACK_MANAGER", track_manager.run)
+    reaper_window_init(&track_manager_window, {{100, 100}, {400, 300}})
+    track_manager_window.should_open = false
+    track_manager_window.background_color = {0.2, 0.2, 0.2, 1}
 
-    shared.plugin_info.Register("hookcommand", cast(rawptr)hook_command)
-    shared.plugin_info.Register("projectconfig", &project_config_extension)
-
-    shared.plugin_info.Register("timer", cast(rawptr)proc "c" () {
-        context = shared.main_context
-
-        gui.update()
-
-        if shared.save_requested {
-            reaper.Main_OnCommandEx(40026, 0, nil)
-            shared.save_requested = false
-        }
-
-        free_all(context.temp_allocator)
+    reaper_add_action("Alkamist: Track manager", "ALKAMIST_TRACK_MANAGER", proc() {
+        track_manager_window.should_open = true
     })
-}
 
-add_reaper_action :: proc(name, id: cstring, action: proc()) {
-    command_id := shared.plugin_info.Register("command_id", cast(rawptr)id)
-    accel_register: reaper.gaccel_register_t
-
-    accel_register.desc = name
-    accel_register.accel.cmd = u16(command_id)
-
-    shared.plugin_info.Register("gaccel", &accel_register)
-    action_map[command_id] = action
-}
-
-@export
-ReaperPluginEntry :: proc "c" (hInst: rawptr, rec: ^reaper.plugin_info_t) -> c.int {
-    shared.main_context = runtime.default_context()
-    context = shared.main_context
-
-    if rec != nil {
-        shared.plugin_info = rec
-        reaper_extension_main()
-        return 1
-    }
-
-    return 0
+    reaper_plugin_info.Register("projectconfig", &project_config_extension)
 }
 
 project_config_extension := reaper.project_config_extension_t{
     ProcessExtensionLine = proc "c" (line: cstring, ctx: ^reaper.ProjectStateContext, isUndo: bool, reg: ^reaper.project_config_extension_t) -> bool {
-        context = shared.main_context
+        context = main_context
 
         line_tokens := strings.split(cast(string)line, " ", context.temp_allocator)
 
@@ -76,36 +41,25 @@ project_config_extension := reaper.project_config_extension_t{
         }
 
         if line_tokens[0] == "<ALKAMISTTRACKMANAGER" {
-            track_manager.load_state(ctx)
+            track_manager_load_state(ctx)
             return true
         }
 
         return false
     },
+
     SaveExtensionConfig = proc "c" (ctx: ^reaper.ProjectStateContext, isUndo: bool, reg: ^reaper.project_config_extension_t) {
         if isUndo {
             return
         }
-        context = shared.main_context
-        track_manager.save_state(ctx)
+        context = main_context
+        track_manager_save_state(ctx)
     },
+
     BeginLoadProjectState = proc "c" (isUndo: bool, reg: ^reaper.project_config_extension_t) {
-        context = shared.main_context
-        track_manager.pre_load()
+        context = main_context
+        track_manager_pre_load()
     },
+
     userData = nil,
-}
-
-action_map: map[c.int]proc()
-
-hook_command :: proc "c" (command, flag: c.int) -> bool {
-    context = shared.main_context
-    if command == 0 {
-        return false
-    }
-    if action, ok := action_map[command]; ok {
-        action()
-        return true
-    }
-    return false
 }
