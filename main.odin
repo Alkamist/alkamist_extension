@@ -24,6 +24,7 @@ init :: proc() {
     plugin_info.Register("projectconfig", &project_config_extension)
 
     reaper_window_init(&track_manager_window, {{100, 100}, {400, 300}})
+    track_manager_load_window_position_and_size()
     track_manager_window.should_open = false
     track_manager_window.background_color = {0.2, 0.2, 0.2, 1}
 

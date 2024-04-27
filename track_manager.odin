@@ -78,7 +78,7 @@ track_group_update_rectangle :: proc(group: ^Track_Group, font: Font) {
     group.size.x = max(group.size.x, TRACK_GROUP_MIN_WIDTH)
 }
 
-track_group_draw_frame :: proc(group: ^Track_Group) {
+track_group_draw_frame :: proc(group: ^Track_Group, manager: ^Track_Manager) {
     pixel := pixel_size()
 
     shadow_rectangle := group.rectangle
@@ -95,7 +95,20 @@ track_group_draw_frame :: proc(group: ^Track_Group) {
     }
 
     fill_rounded_rectangle(group.rectangle, 3, color)
-    outline_rounded_rectangle(group.rectangle, 3, pixel.x, {1, 1, 1, 0.15})
+
+    group_contains_selected_track := false
+    for track in manager.selected_tracks {
+        if slice.contains(group.tracks[:], track) {
+            group_contains_selected_track = true
+            break
+        }
+    }
+
+    if group_contains_selected_track {
+        outline_rounded_rectangle(group.rectangle, 3, pixel.x, {1, 1, 1, 0.5})
+    } else {
+        outline_rounded_rectangle(group.rectangle, 3, pixel.x, {1, 1, 1, 0.15})
+    }
 }
 
 //==========================================================================
@@ -207,10 +220,6 @@ track_manager_update :: proc(manager: ^Track_Manager) {
     case .Renaming_Groups: track_manager_renaming_groups(manager, relative_rectangle)
     case .Confirming_Group_Deletion: track_manager_confirming_group_deletion(manager, relative_rectangle)
     }
-
-    // if key_down(.Left_Control) && key_pressed(.S) {
-    //     reaper_save_project()
-    // }
 
     manager.state_changed = manager.state != previous_state
 }
@@ -448,7 +457,7 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
     // Group logic.
 
     invisible_button_update(&manager.background_button, rectangle)
-    if manager.background_button.pressed {
+    if manager.background_button.pressed && !key_down(.Left_Shift) && !key_down(.Left_Control) {
         for group in manager.groups {
             group.is_selected = false
         }
@@ -456,7 +465,7 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
 
     for group in manager.groups {
         track_group_update_rectangle(group, track_manager_font)
-        track_group_draw_frame(group)
+        track_group_draw_frame(group, manager)
 
         invisible_button_update(&group.button, group.rectangle)
         fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
@@ -517,24 +526,48 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
     if !manager.is_editing_groups {
         tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
 
+        at_least_one_group_is_selected := false
+        at_least_one_section_is_selected := false
+
         for group in manager.groups {
             for track in group.tracks {
                 if !slice.contains(tracks[:], track) {
                     append(&tracks, track)
                 }
             }
+            if group.is_selected {
+                switch group.kind {
+                case .Group: at_least_one_group_is_selected = true
+                case .Section: at_least_one_section_is_selected = true
+                }
+            }
         }
 
         for track in tracks {
-            track_should_be_visible := false
+            track_is_in_selected_group := false
+            track_is_in_selected_section := false
 
             for group in manager.groups {
-                if group.is_selected && slice.contains(group.tracks[:], track) {
-                    track_should_be_visible = true
+                if !group.is_selected || !slice.contains(group.tracks[:], track) {
+                    continue
+                }
+                switch group.kind {
+                case .Group: track_is_in_selected_group = true
+                case .Section: track_is_in_selected_section = true
                 }
             }
 
             track_is_visible := reaper_track_is_visible(track)
+            track_should_be_visible := false
+            if at_least_one_section_is_selected {
+                if at_least_one_group_is_selected {
+                    track_should_be_visible = track_is_in_selected_group && track_is_in_selected_section
+                } else {
+                    track_should_be_visible = track_is_in_selected_section
+                }
+            } else {
+                track_should_be_visible = track_is_in_selected_group
+            }
 
             if track_should_be_visible && !track_is_visible {
                 reaper_set_track_visible(track, true)
@@ -552,7 +585,7 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
 
     // Add a new group at mouse position on double click.
 
-    if mouse_pressed(.Left) && mouse_repeat_count(.Left) == 2 {
+    if manager.background_button.pressed && mouse_repeat_count(.Left) == 2 {
         track_manager_unselect_all_groups(manager)
         track_manager_create_new_group(manager, mouse_pos)
         manager.state = .Renaming_Groups
@@ -571,8 +604,16 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
     }
 
     // Play the project when pressing space bar.
+
     if key_pressed(.Space) {
         reaper.Main_OnCommandEx(40044, 0, nil)
+    }
+
+    // Save the project when ctrl + s is pressed.
+
+    if key_down(.Left_Control) && key_pressed(.S) {
+        track_manager_save_window_position_and_size()
+        reaper_save_project()
     }
 }
 
@@ -593,7 +634,7 @@ track_manager_renaming_groups :: proc(manager: ^Track_Manager, rectangle: Rectan
         }
 
         track_group_update_rectangle(group, track_manager_font)
-        track_group_draw_frame(group)
+        track_group_draw_frame(group, manager)
 
         if group.is_selected {
             editable_text_line_update(&group.editable_name, group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
@@ -619,7 +660,7 @@ track_manager_confirming_group_deletion :: proc(manager: ^Track_Manager, rectang
 
     for group in manager.groups {
         track_group_update_rectangle(group, track_manager_font)
-        track_group_draw_frame(group)
+        track_group_draw_frame(group, manager)
         fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
     }
 
@@ -756,6 +797,9 @@ track_manager_parse_group :: proc(parser: ^Reaper_Project_Parser, manager: ^Trac
         case "POSITION":
             group.position = reaper_project_parser_get_vector2_field(parser)
 
+        case "KIND":
+            group.kind = cast(Track_Group_Kind)reaper_project_parser_get_int_field(parser)
+
         case "ISSELECTED":
             group.is_selected = cast(bool)reaper_project_parser_get_int_field(parser)
 
@@ -784,8 +828,7 @@ track_manager_parse_group :: proc(parser: ^Reaper_Project_Parser, manager: ^Trac
 }
 
 track_manager_save_state :: proc(ctx: ^reaper.ProjectStateContext) {
-    // track_manager_save_window_position_and_size()
-
+    track_manager_save_window_position_and_size()
     project := reaper.GetCurrentProjectInLoadSave()
 
     manager, exists := track_managers[project]
@@ -809,6 +852,7 @@ track_manager_save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: 
 
     reaper_project_parser_add_linef(ctx, "NAME \"%s\"", strings.to_string(group.name))
     reaper_project_parser_add_linef(ctx, "POSITION %s %s", reaper_format_f32(group.position.x), reaper_format_f32(group.position.y))
+    reaper_project_parser_add_linef(ctx, "KIND %d", cast(int)group.kind)
     reaper_project_parser_add_linef(ctx, "ISSELECTED %d", cast(int)group.is_selected)
 
     reaper_project_parser_add_line(ctx, "<TRACKGUIDS")
@@ -822,50 +866,48 @@ track_manager_save_group_state :: proc(ctx: ^reaper.ProjectStateContext, group: 
     reaper_project_parser_add_line(ctx, ">")
 }
 
-// track_manager_save_window_position_and_size :: proc() {
-//     window := current_window()
-//     position := window.position
-//     size := window.size
+track_manager_save_window_position_and_size :: proc() {
+    position := track_manager_window.position
+    size := track_manager_window.size
 
-//     x := reaper_format_f32(position.x)
-//     x_cstring := strings.clone_to_cstring(x, context.temp_allocator)
-//     reaper.SetExtState("Alkamist_Track_Manager", "window_x", x_cstring, true)
+    x := reaper_format_f32(position.x)
+    x_cstring := strings.clone_to_cstring(x, context.temp_allocator)
+    reaper.SetExtState("Alkamist_Track_Manager", "window_x", x_cstring, true)
 
-//     y := reaper_format_f32(position.y)
-//     y_cstring := strings.clone_to_cstring(y, context.temp_allocator)
-//     reaper.SetExtState("Alkamist_Track_Manager", "window_y", y_cstring, true)
+    y := reaper_format_f32(position.y)
+    y_cstring := strings.clone_to_cstring(y, context.temp_allocator)
+    reaper.SetExtState("Alkamist_Track_Manager", "window_y", y_cstring, true)
 
-//     width := reaper_format_f32(size.x)
-//     width_cstring := strings.clone_to_cstring(width, context.temp_allocator)
-//     reaper.SetExtState("Alkamist_Track_Manager", "window_width", width_cstring, true)
+    width := reaper_format_f32(size.x)
+    width_cstring := strings.clone_to_cstring(width, context.temp_allocator)
+    reaper.SetExtState("Alkamist_Track_Manager", "window_width", width_cstring, true)
 
-//     height := reaper_format_f32(size.y)
-//     height_cstring := strings.clone_to_cstring(height, context.temp_allocator)
-//     reaper.SetExtState("Alkamist_Track_Manager", "window_height", height_cstring, true)
-// }
+    height := reaper_format_f32(size.y)
+    height_cstring := strings.clone_to_cstring(height, context.temp_allocator)
+    reaper.SetExtState("Alkamist_Track_Manager", "window_height", height_cstring, true)
+}
 
-// track_manager_load_window_position_and_size :: proc() {
-//     position := Vector2{200, 200}
-//     size := Vector2{400, 300}
+track_manager_load_window_position_and_size :: proc() {
+    position := Vector2{200, 200}
+    size := Vector2{400, 300}
 
-//     if reaper.HasExtState("Alkamist_Track_Manager", "window_x") {
-//         value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_x")
-//         position.x = strconv.parse_f32(cast(string)value_cstring) or_else position.x
-//     }
-//     if reaper.HasExtState("Alkamist_Track_Manager", "window_y") {
-//         value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_y")
-//         position.y = strconv.parse_f32(cast(string)value_cstring) or_else position.y
-//     }
-//     if reaper.HasExtState("Alkamist_Track_Manager", "window_width") {
-//         value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_width")
-//         size.x = strconv.parse_f32(cast(string)value_cstring) or_else size.x
-//     }
-//     if reaper.HasExtState("Alkamist_Track_Manager", "window_height") {
-//         value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_height")
-//         size.y = strconv.parse_f32(cast(string)value_cstring) or_else size.y
-//     }
+    if reaper.HasExtState("Alkamist_Track_Manager", "window_x") {
+        value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_x")
+        position.x = strconv.parse_f32(cast(string)value_cstring) or_else position.x
+    }
+    if reaper.HasExtState("Alkamist_Track_Manager", "window_y") {
+        value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_y")
+        position.y = strconv.parse_f32(cast(string)value_cstring) or_else position.y
+    }
+    if reaper.HasExtState("Alkamist_Track_Manager", "window_width") {
+        value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_width")
+        size.x = strconv.parse_f32(cast(string)value_cstring) or_else size.x
+    }
+    if reaper.HasExtState("Alkamist_Track_Manager", "window_height") {
+        value_cstring := reaper.GetExtState("Alkamist_Track_Manager", "window_height")
+        size.y = strconv.parse_f32(cast(string)value_cstring) or_else size.y
+    }
 
-//     window := current_window()
-//     window.position = position
-//     window.size = size
-// }
+    track_manager_window.position = position
+    track_manager_window.size = size
+}
