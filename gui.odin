@@ -682,6 +682,12 @@ fill_rounded_rectangle :: proc(rectangle: Rectangle, radius: f32, color: Color) 
     fill_path(path, color)
 }
 
+fill_circle :: proc(center: Vector2, radius: f32, color: Color) {
+    path := temp_path()
+    path_circle(&path, center, radius)
+    fill_path(path, color)
+}
+
 outline_rounded_rectangle :: proc(rectangle: Rectangle, radius, thickness: f32, color: Color) {
     path := temp_path()
     path_rounded_rectangle(&path, rectangle, radius)
@@ -909,7 +915,9 @@ rectangle_snap :: proc(rectangle: ^Rectangle, increment: Vector2) {
 }
 
 rectangle_intersection :: proc(a, b: Rectangle) -> Rectangle {
-    assert(a.size.x >= 0 && a.size.y >= 0 && b.size.x >= 0 && b.size.y >= 0)
+    if a.size.x < 0 || a.size.y < 0 || b.size.x < 0 || b.size.y < 0 {
+        return {}
+    }
 
     x1 := max(a.position.x, b.position.x)
     y1 := max(a.position.y, b.position.y)
@@ -927,8 +935,9 @@ rectangle_intersection :: proc(a, b: Rectangle) -> Rectangle {
 }
 
 rectangle_intersects :: proc(a, b: Rectangle, include_borders := false) -> bool {
-    assert(a.size.x >= 0 && a.size.y >= 0 && b.size.x >= 0 && b.size.y >= 0)
-
+    if a.size.x < 0 || a.size.y < 0 || b.size.x < 0 || b.size.y < 0 {
+        return false
+    }
     if include_borders {
         if a.position.x > b.position.x + b.size.x {
             return false
@@ -966,7 +975,9 @@ rectangle_encloses :: proc{
 }
 
 rectangle_encloses_rect :: proc(a, b: Rectangle, include_borders := false) -> bool {
-    assert(a.size.x >= 0 && a.size.y >= 0 && b.size.x >= 0 && b.size.y >= 0)
+    if a.size.x < 0 || a.size.y < 0 || b.size.x < 0 || b.size.y < 0 {
+        return false
+    }
     if include_borders {
         return b.position.x >= a.position.x &&
                b.position.y >= a.position.y &&
@@ -981,7 +992,9 @@ rectangle_encloses_rect :: proc(a, b: Rectangle, include_borders := false) -> bo
 }
 
 rectangle_encloses_vector2 :: proc(a: Rectangle, b: Vector2, include_borders := false) -> bool {
-    assert(a.size.x >= 0 && a.size.y >= 0)
+    if a.size.x < 0 || a.size.y < 0 {
+        return false
+    }
     if include_borders {
         return b.x >= a.position.x && b.x <= a.position.x + a.size.x &&
                b.y >= a.position.y && b.y <= a.position.y + a.size.y

@@ -9,8 +9,6 @@ import "../reaper"
 
 // Move input to each window?
 // Tracks that you add automatically get added to filters but not visibility groups
-// Make groups have a type and when you click the group it toggles it on or off
-// Make editing a different mode?
 
 
 
@@ -43,16 +41,17 @@ get_track_manager :: proc(project: ^reaper.ReaProject) -> ^Track_Manager {
 
 TRACK_GROUP_PADDING :: 4
 TRACK_GROUP_MIN_WIDTH :: 48
+TRACK_GROUP_COLOR :: Color{45.0 / 255, 107.0 / 255, 14.0 / 255, 1}
+TRACK_SECTION_COLOR :: Color{104.0 / 255, 14.0 / 255, 107.0 / 255, 1}
 
-Track_Group_Status :: enum {
-    None,
-    Visible,
-    Filter,
+Track_Group_Kind :: enum {
+    Group,
+    Section,
 }
 
 Track_Group :: struct {
     using rectangle: Rectangle,
-    status: Track_Group_Status,
+    kind: Track_Group_Kind,
     tracks: [dynamic]^reaper.MediaTrack,
     is_selected: bool,
     position_when_drag_started: Vector2,
@@ -87,49 +86,67 @@ track_group_draw_frame :: proc(group: ^Track_Group) {
     box_shadow(shadow_rectangle, 3, 5, {0, 0, 0, 0.3}, {0, 0, 0, 0})
 
     color: Color
-    switch group.status {
-    case .None: color = {0.25, 0.25, 0.25, 1}
-    case .Visible: color = color_rgb(45, 107, 14)
-    case .Filter: color = color_rgb(104, 14, 107)
+    switch group.kind {
+    case .Group: color = TRACK_GROUP_COLOR
+    case .Section: color = TRACK_SECTION_COLOR
     }
-    fill_rounded_rectangle(group.rectangle, 3, color)
+    if !group.is_selected {
+        color = color_darken(color, 0.5)
+    }
 
+    fill_rounded_rectangle(group.rectangle, 3, color)
     outline_rounded_rectangle(group.rectangle, 3, pixel.x, {1, 1, 1, 0.15})
-    if group.is_selected {
-        fill_rounded_rectangle(group.rectangle, 3, {1, 1, 1, 0.08})
-    }
 }
 
 //==========================================================================
 // Manager
 //==========================================================================
 
+TRACK_MANAGER_TOOLBAR_HEIGHT :: 18
+
 Track_Manager_State :: enum {
-    Editing,
-    Renaming,
-    Confirm_Delete,
+    Editing_Visibility,
+    Editing_Groups,
+    Renaming_Groups,
+    Confirming_Group_Deletion,
 }
 
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
     selected_tracks: [dynamic]^reaper.MediaTrack,
+
     state: Track_Manager_State,
     state_changed: bool,
+
     groups: [dynamic]^Track_Group,
+
     is_dragging_groups: bool,
-    group_movement_is_locked: bool,
     mouse_position_when_drag_started: Vector2,
+
     box_select: Box_Select,
     background_button: Button,
+
     delete_prompt_yes_button: Button,
     delete_prompt_no_button: Button,
+
+    toolbar_edit_groups_button: Button,
+    toolbar_remove_tracks_button: Button,
+    toolbar_add_tracks_button: Button,
+    toolbar_set_as_group_button: Button,
+    toolbar_set_as_section_button: Button,
 }
 
 track_manager_init :: proc(manager: ^Track_Manager, project: ^reaper.ReaProject) {
     manager.project = project
+    manager.state = .Editing_Visibility
     button_base_init(&manager.background_button)
     button_base_init(&manager.delete_prompt_yes_button)
     button_base_init(&manager.delete_prompt_no_button)
+    button_base_init(&manager.toolbar_edit_groups_button)
+    button_base_init(&manager.toolbar_remove_tracks_button)
+    button_base_init(&manager.toolbar_add_tracks_button)
+    button_base_init(&manager.toolbar_set_as_group_button)
+    button_base_init(&manager.toolbar_set_as_section_button)
 }
 
 track_manager_destroy :: proc(manager: ^Track_Manager) {
@@ -149,6 +166,8 @@ track_manager_reset :: proc(manager: ^Track_Manager) {
 }
 
 track_manager_update :: proc(manager: ^Track_Manager) {
+    window_size := current_window().size
+
     previous_state := manager.state
 
     // Remove any invalid tracks from groups.
@@ -170,7 +189,12 @@ track_manager_update :: proc(manager: ^Track_Manager) {
 
     // Main logic.
 
-    rectangle := Rectangle{{0, 0}, current_window().size}
+    track_manager_toolbar(manager)
+
+    rectangle := Rectangle{
+        {0, TRACK_MANAGER_TOOLBAR_HEIGHT},
+        {window_size.x, window_size.y - TRACK_MANAGER_TOOLBAR_HEIGHT},
+    }
 
     scoped_clip(rectangle)
     scoped_offset(rectangle.position)
@@ -178,45 +202,10 @@ track_manager_update :: proc(manager: ^Track_Manager) {
     relative_rectangle := Rectangle{{0, 0}, rectangle.size}
 
     switch manager.state {
-    case .Editing: track_manager_editing(manager, relative_rectangle)
-    case .Renaming: track_manager_renaming(manager, relative_rectangle)
-    case .Confirm_Delete: track_manager_confirm_delete(manager, relative_rectangle)
-    }
-
-    // Update track visibility.
-
-    tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
-
-    for group in manager.groups {
-        for track in group.tracks {
-            if !slice.contains(tracks[:], track) {
-                append(&tracks, track)
-            }
-        }
-    }
-
-    for track in tracks {
-        track_should_be_visible := false
-
-        for group in manager.groups {
-            if group.is_selected && slice.contains(group.tracks[:], track) {
-                track_should_be_visible = true
-            }
-        }
-
-        track_is_visible := reaper_track_is_visible(track)
-
-        if track_should_be_visible && !track_is_visible {
-            reaper_set_track_visible(track, true)
-            reaper.MarkProjectDirty(manager.project)
-
-        } else if !track_should_be_visible && track_is_visible {
-            reaper_set_track_visible(track, false)
-
-            // Unselect tracks that are hidden by the manager.
-            reaper.SetTrackSelected(track, false)
-            reaper.MarkProjectDirty(manager.project)
-        }
+    case .Editing_Visibility: track_manager_editing_visibility(manager, relative_rectangle)
+    case .Editing_Groups: track_manager_editing_groups(manager, relative_rectangle)
+    case .Renaming_Groups: track_manager_renaming_groups(manager, relative_rectangle)
+    case .Confirming_Group_Deletion: track_manager_confirming_group_deletion(manager, relative_rectangle)
     }
 
     // if key_down(.Left_Control) && key_pressed(.S) {
@@ -224,6 +213,92 @@ track_manager_update :: proc(manager: ^Track_Manager) {
     // }
 
     manager.state_changed = manager.state != previous_state
+}
+
+track_manager_toolbar :: proc(manager: ^Track_Manager) {
+    toolbar_rectangle := Rectangle{
+        {0, 0},
+        {current_window().size.x, TRACK_MANAGER_TOOLBAR_HEIGHT},
+    }
+
+    toolbar_color := Color{0.1, 0.1, 0.1, 1}
+    fill_rectangle(toolbar_rectangle, toolbar_color)
+
+    BUTTON_WIDTH :: 42
+
+    toolbar_button_update :: proc(button: ^Button, x: f32, label: string, color: Color) {
+        rectangle := Rectangle{{x, 0}, {BUTTON_WIDTH, TRACK_MANAGER_TOOLBAR_HEIGHT}}
+        invisible_button_update(button, rectangle)
+        fill_rectangle(rectangle, color)
+        if mouse_hover() == button.id {
+            fill_rectangle(rectangle, {1, 1, 1, 0.15})
+        }
+        fill_string_aligned(label, rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+    }
+
+    toolbar_group_button_update :: proc(button: ^Button, x: f32, color: Color) {
+        rectangle := Rectangle{{x, 0}, {BUTTON_WIDTH, TRACK_MANAGER_TOOLBAR_HEIGHT}}
+        invisible_button_update(button, rectangle)
+
+        center := rectangle.position + rectangle.size * 0.5
+        fill_circle(center, 4, color)
+        if mouse_hover() == button.id {
+            fill_rectangle(rectangle, {1, 1, 1, 0.15})
+        }
+    }
+
+    // Edit button.
+
+    button_x: f32
+    is_editing := manager.state == .Editing_Groups || manager.state == .Renaming_Groups
+    toolbar_button_update(&manager.toolbar_edit_groups_button,
+        button_x,
+        "Edit",
+        color_rgb(74, 115, 181) if is_editing else toolbar_color,
+    )
+    if manager.toolbar_edit_groups_button.clicked {
+        if manager.state == .Editing_Groups {
+            manager.state = .Editing_Visibility
+        } else if  manager.state == .Editing_Visibility {
+            manager.state = .Editing_Groups
+        }
+    }
+
+    // Remove tracks button.
+
+    button_x += BUTTON_WIDTH
+    toolbar_button_update(&manager.toolbar_remove_tracks_button, button_x, "-", toolbar_color)
+    if manager.toolbar_remove_tracks_button.clicked {
+        track_manager_remove_selected_tracks_from_selected_groups(manager)
+    }
+
+    // Add tracks button.
+
+    button_x += BUTTON_WIDTH
+    toolbar_button_update(&manager.toolbar_add_tracks_button, button_x, "+", toolbar_color)
+    if manager.toolbar_add_tracks_button.clicked {
+        track_manager_add_selected_tracks_to_selected_groups(manager)
+    }
+
+    // Set as group button.
+
+    button_x += BUTTON_WIDTH
+    toolbar_group_button_update(&manager.toolbar_set_as_group_button, button_x, TRACK_GROUP_COLOR)
+    if manager.toolbar_set_as_group_button.clicked {
+        for group in manager.groups {
+            if group.is_selected do group.kind = .Group
+        }
+    }
+
+    // Set as section button.
+
+    button_x += BUTTON_WIDTH
+    toolbar_group_button_update(&manager.toolbar_set_as_section_button, button_x, TRACK_SECTION_COLOR)
+    if manager.toolbar_set_as_section_button.clicked {
+        for group in manager.groups {
+            if group.is_selected do group.kind = .Section
+        }
+    }
 }
 
 //==========================================================================
@@ -370,66 +445,12 @@ track_manager_center_groups :: proc(manager: ^Track_Manager, rectangle: Rectangl
 // States
 //==========================================================================
 
-track_manager_renaming :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
-    if key_pressed(.Enter) || key_pressed(.Escape) {
-        manager.state = .Editing
-    }
-
-    invisible_button_update(&manager.background_button, rectangle)
-    if manager.background_button.pressed {
-        track_manager_unselect_all_groups(manager)
-        manager.state = .Editing
-    }
-
-    for group in manager.groups {
-        if manager.state_changed {
-            editable_text_line_edit(&group.editable_name, .Select_All)
-        }
-
-        track_group_update_rectangle(group, track_manager_font)
-        track_group_draw_frame(group)
-
-        if group.is_selected {
-            editable_text_line_update(&group.editable_name, group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
-        } else {
-            fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
-        }
-    }
-}
-
-track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
+track_manager_editing_visibility :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
     mouse_pos := mouse_position()
     start_dragging_groups := false
-    group_pressed := false
-
-    if key_pressed(.F2) {
-        manager.state = .Renaming
-    }
-
-    if key_pressed(.Enter) {
-        track_manager_unselect_all_groups(manager)
-        track_manager_create_new_group(manager, mouse_pos)
-        manager.state = .Renaming
-    }
-
-    if key_pressed(.Delete) && track_manager_selected_group_count(manager) > 0 {
-        manager.state = .Confirm_Delete
-    }
 
     if key_pressed(.C) {
         track_manager_center_groups(manager, rectangle)
-    }
-
-    if key_pressed(.L) {
-        manager.group_movement_is_locked = !manager.group_movement_is_locked
-    }
-
-    if key_pressed(.E) {
-        track_manager_add_selected_tracks_to_selected_groups(manager)
-    }
-
-    if key_pressed(.R) {
-        track_manager_remove_selected_tracks_from_selected_groups(manager)
     }
 
     // Play the project when pressing space bar.
@@ -437,33 +458,108 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
         reaper.Main_OnCommandEx(40044, 0, nil)
     }
 
-    // Group status logic.
+    // Group logic.
 
-    status: Track_Group_Status
-    set_status := false
-    if key_pressed(.S) {
-        status = .None
-        set_status = true
-    }
-    if key_pressed(.D) {
-        status = .Visible
-        set_status = true
-    }
-    if key_pressed(.F) {
-        status = .Filter
-        set_status = true
-    }
-    if set_status {
+    invisible_button_update(&manager.background_button, rectangle)
+    if manager.background_button.pressed {
         for group in manager.groups {
-            if group.is_selected {
-                if group.status == status {
-                    group.status = .None
-                } else {
-                    group.status = status
-                }
+            group.is_selected = false
+        }
+    }
+
+    for group in manager.groups {
+        track_group_update_rectangle(group, track_manager_font)
+        track_group_draw_frame(group)
+
+        invisible_button_update(&group.button, group.rectangle)
+        fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+
+        if group.button.pressed {
+            track_manager_selection_logic(manager, {group}, false)
+        }
+    }
+
+    // Dragging logic.
+
+    if mouse_pressed(.Middle) && mouse_clip_test() {
+        start_dragging_groups = true
+    }
+
+    if start_dragging_groups {
+        manager.is_dragging_groups = true
+        manager.mouse_position_when_drag_started = mouse_pos
+    }
+
+    if manager.is_dragging_groups && !mouse_down(.Middle) {
+        manager.is_dragging_groups = false
+    }
+
+    if manager.is_dragging_groups {
+        drag_delta := mouse_pos - manager.mouse_position_when_drag_started
+        for group in manager.groups {
+            if start_dragging_groups {
+                group.position_when_drag_started = group.position
+            }
+            if mouse_down(.Middle) {
+                group.position = group.position_when_drag_started + drag_delta
             }
         }
     }
+
+    // Box select logic.
+
+    box_select_update(&manager.box_select, .Right)
+    if manager.box_select.selected {
+        groups_touched_by_box_select := make([dynamic]^Track_Group, context.temp_allocator)
+        for group in manager.groups {
+            if rectangle_intersects(manager.box_select.rectangle, group, true) {
+                append(&groups_touched_by_box_select, group)
+            }
+        }
+        track_manager_selection_logic(manager, groups_touched_by_box_select[:], true)
+    }
+
+    // Update track visibility.
+
+    tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
+
+    for group in manager.groups {
+        for track in group.tracks {
+            if !slice.contains(tracks[:], track) {
+                append(&tracks, track)
+            }
+        }
+    }
+
+    for track in tracks {
+        track_should_be_visible := false
+
+        for group in manager.groups {
+            if group.is_selected && slice.contains(group.tracks[:], track) {
+                track_should_be_visible = true
+            }
+        }
+
+        track_is_visible := reaper_track_is_visible(track)
+
+        if track_should_be_visible && !track_is_visible {
+            reaper_set_track_visible(track, true)
+            reaper.MarkProjectDirty(manager.project)
+
+        } else if !track_should_be_visible && track_is_visible {
+            reaper_set_track_visible(track, false)
+
+            // Unselect tracks that are hidden by the manager.
+            reaper.SetTrackSelected(track, false)
+            reaper.MarkProjectDirty(manager.project)
+        }
+    }
+}
+
+track_manager_editing_groups :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
+    mouse_pos := mouse_position()
+    start_dragging_groups := false
+    group_pressed := false
 
     // Group logic.
 
@@ -513,7 +609,7 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
             if start_dragging_groups {
                 group.position_when_drag_started = group.position
             }
-            if (group.is_selected && !manager.group_movement_is_locked) || mouse_down(.Middle) {
+            if group.is_selected || mouse_down(.Middle) {
                 group.position = group.position_when_drag_started + drag_delta
             }
         }
@@ -531,9 +627,62 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
         }
         track_manager_selection_logic(manager, groups_touched_by_box_select[:], true)
     }
+
+    // Add a new group at mouse position on double click.
+
+    if mouse_pressed(.Left) && mouse_repeat_count(.Left) == 2 {
+        track_manager_unselect_all_groups(manager)
+        track_manager_create_new_group(manager, mouse_pos)
+        manager.state = .Renaming_Groups
+    }
+
+    if key_pressed(.F2) {
+        manager.state = .Renaming_Groups
+    }
+
+    if key_pressed(.Delete) && track_manager_selected_group_count(manager) > 0 {
+        manager.state = .Confirming_Group_Deletion
+    }
+
+    if key_pressed(.C) {
+        track_manager_center_groups(manager, rectangle)
+    }
+
+    // Play the project when pressing space bar.
+
+    if key_pressed(.Space) {
+        reaper.Main_OnCommandEx(40044, 0, nil)
+    }
 }
 
-track_manager_confirm_delete :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
+track_manager_renaming_groups :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
+    if key_pressed(.Enter) || key_pressed(.Escape) {
+        manager.state = .Editing_Groups
+    }
+
+    invisible_button_update(&manager.background_button, rectangle)
+    if manager.background_button.pressed {
+        track_manager_unselect_all_groups(manager)
+        manager.state = .Editing_Groups
+    }
+
+    for group in manager.groups {
+        if manager.state_changed {
+            editable_text_line_edit(&group.editable_name, .Select_All)
+        }
+
+        track_group_update_rectangle(group, track_manager_font)
+        track_group_draw_frame(group)
+
+        if group.is_selected {
+            editable_text_line_update(&group.editable_name, group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+        } else {
+            fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+        }
+    }
+}
+
+track_manager_confirming_group_deletion :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
     pixel := pixel_size()
 
     do_abort := false
@@ -629,9 +778,9 @@ track_manager_confirm_delete :: proc(manager: ^Track_Manager, rectangle: Rectang
 
     if do_delete {
         track_manager_remove_selected_groups(manager)
-        manager.state = .Editing
+        manager.state = .Editing_Groups
     } else if do_abort {
-        manager.state = .Editing
+        manager.state = .Editing_Groups
     }
 }
 
