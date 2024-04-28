@@ -98,9 +98,21 @@ track_group_draw_frame :: proc(group: ^Track_Group, manager: ^Track_Manager) {
     }
 
     if group_contains_selected_track {
-        outline_rounded_rectangle(group.rectangle, 3, pixel.x, {1, 1, 1, 0.5})
+        if group.is_selected {
+            outline_rounded_rectangle(group.rectangle, 3, pixel.x, color_rgba(243, 255, 105, 220))
+        } else {
+            outline_rounded_rectangle(group.rectangle, 3, pixel.x, color_rgba(243, 255, 105, 170))
+        }
     } else {
         outline_rounded_rectangle(group.rectangle, 3, pixel.x, {1, 1, 1, 0.15})
+    }
+}
+
+track_group_name_color :: proc(group: ^Track_Group) -> Color {
+    if group.is_selected {
+        return {1, 1, 1, 1}
+    } else {
+        return {1, 1, 1, 0.7}
     }
 }
 
@@ -118,7 +130,7 @@ Track_Manager_State :: enum {
 
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
-    all_tracks: [dynamic]^reaper.MediaTrack,
+    // all_tracks: [dynamic]^reaper.MediaTrack,
     selected_tracks: [dynamic]^reaper.MediaTrack,
 
     state: Track_Manager_State,
@@ -162,6 +174,7 @@ track_manager_destroy :: proc(manager: ^Track_Manager) {
         free(group)
     }
     delete(manager.groups)
+    // delete(manager.all_tracks)
 }
 
 track_manager_reset :: proc(manager: ^Track_Manager) {
@@ -174,8 +187,6 @@ track_manager_reset :: proc(manager: ^Track_Manager) {
 }
 
 track_manager_update :: proc(manager: ^Track_Manager) {
-    window_size := current_window().size
-
     previous_state := manager.state
 
     // Remove any invalid tracks from groups.
@@ -189,23 +200,23 @@ track_manager_update :: proc(manager: ^Track_Manager) {
 
     // Poll for any new tracks and add them to selected groups.
 
-    all_tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
-    track_count := reaper.CountTracks(manager.project)
-    for i in 0 ..< track_count {
-        track := reaper.GetTrack(manager.project, i)
-        if !slice.contains(manager.all_tracks[:], track) {
-            for group in manager.groups {
-                if group.is_selected && !slice.contains(group.tracks[:], track) {
-                    append(&group.tracks, track)
-                }
-            }
-        }
-        append(&all_tracks, track)
-    }
-    clear(&manager.all_tracks)
-    for track in all_tracks {
-        append(&manager.all_tracks, track)
-    }
+    // all_tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
+    // track_count := reaper.CountTracks(manager.project)
+    // for i in 0 ..< track_count {
+    //     track := reaper.GetTrack(manager.project, i)
+    //     if !slice.contains(manager.all_tracks[:], track) {
+    //         for group in manager.groups {
+    //             if group.is_selected && !slice.contains(group.tracks[:], track) {
+    //                 append(&group.tracks, track)
+    //             }
+    //         }
+    //     }
+    //     append(&all_tracks, track)
+    // }
+    // clear(&manager.all_tracks)
+    // for track in all_tracks {
+    //     append(&manager.all_tracks, track)
+    // }
 
     // Update selected tracks.
 
@@ -219,6 +230,7 @@ track_manager_update :: proc(manager: ^Track_Manager) {
 
     track_manager_toolbar(manager)
 
+    window_size := current_window().size
     rectangle := Rectangle{
         {0, TRACK_MANAGER_TOOLBAR_HEIGHT},
         {window_size.x, window_size.y - TRACK_MANAGER_TOOLBAR_HEIGHT},
@@ -482,7 +494,7 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
         track_group_draw_frame(group, manager)
 
         invisible_button_update(&group.button, group.rectangle)
-        fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+        fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, track_group_name_color(group), {0.5, 0.5})
 
         if group.button.pressed {
             group_pressed = true
@@ -587,26 +599,12 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
 
             track_is_visible := reaper_track_is_visible(track)
 
-            set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
-                reaper_set_track_and_children_visible(track, visible)
-                if visible {
-                    parent := reaper.GetParentTrack(track)
-                    for parent != nil {
-                        reaper_set_track_visible(parent, true)
-                        parent = reaper.GetParentTrack(parent)
-                    }
-                }
-            }
-
             if track_should_be_visible && !track_is_visible {
-                set_track_visible(track, true)
+                reaper_set_track_visible(track, true)
                 reaper.MarkProjectDirty(manager.project)
 
             } else if !track_should_be_visible && track_is_visible {
-                set_track_visible(track, false)
-
-                // Unselect tracks that are hidden by the manager.
-                reaper.SetTrackSelected(track, false)
+                reaper_set_track_visible(track, false)
                 reaper.MarkProjectDirty(manager.project)
             }
         }
@@ -670,9 +668,9 @@ track_manager_renaming_groups :: proc(manager: ^Track_Manager, rectangle: Rectan
         track_group_draw_frame(group, manager)
 
         if group.is_selected {
-            editable_text_line_update(&group.editable_name, group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+            editable_text_line_update(&group.editable_name, group.rectangle, track_manager_font, track_group_name_color(group), {0.5, 0.5})
         } else {
-            fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+            fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, track_group_name_color(group), {0.5, 0.5})
         }
     }
 }
@@ -694,7 +692,7 @@ track_manager_confirming_group_deletion :: proc(manager: ^Track_Manager, rectang
     for group in manager.groups {
         track_group_update_rectangle(group, track_manager_font)
         track_group_draw_frame(group, manager)
-        fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, {1, 1, 1, 1}, {0.5, 0.5})
+        fill_string_aligned(strings.to_string(group.name), group.rectangle, track_manager_font, track_group_name_color(group), {0.5, 0.5})
     }
 
     prompt_rectangle := Rectangle{
