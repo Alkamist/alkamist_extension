@@ -644,6 +644,10 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
         track_manager_save_window_position_and_size()
         reaper_save_project()
     }
+
+    if key_pressed(.Escape) {
+        track_manager_window.should_close = true
+    }
 }
 
 track_manager_renaming_groups :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
