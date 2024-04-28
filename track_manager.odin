@@ -3,14 +3,7 @@ package main
 import "core:slice"
 import "core:strings"
 import "core:strconv"
-import "../reaper"
-
-
-
-// Move input to each window?
-// Tracks that you add automatically get added to filters but not visibility groups
-
-
+import "reaper"
 
 //==========================================================================
 // Global State

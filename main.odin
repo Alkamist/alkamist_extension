@@ -7,7 +7,7 @@ import "core:strings"
 import "core:strconv"
 import "core:unicode"
 import "core:runtime"
-import "../reaper"
+import "reaper"
 
 main_context: runtime.Context
 plugin_info: ^reaper.plugin_info_t
@@ -366,8 +366,7 @@ ReaperPluginEntry :: proc "c" (hInst: rawptr, rec: ^reaper.plugin_info_t) -> c.i
     reaper.load_api_functions(plugin_info)
     plugin_info.Register("hookcommand", cast(rawptr)_reaper_hook_command)
 
-    gui_startup(update)
-    init()
+    gui_startup()
 
     return 1
 }
