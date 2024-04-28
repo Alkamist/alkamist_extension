@@ -42,15 +42,6 @@ update :: proc() {
     manager := get_track_manager(project)
     if window_update(&track_manager_window) {
         track_manager_update(manager)
-
-        // if key_pressed(.F) {
-        //     track := reaper.GetSelectedTrack(nil, 0)
-        //     reaper_set_track_and_children_visible(track, true)
-        // }
-        // if key_pressed(.G) {
-        //     track := reaper.GetSelectedTrack(nil, 0)
-        //     reaper_set_track_and_children_visible(track, false)
-        // }
     }
 
     reaper.PreventUIRefresh(-1)

@@ -187,7 +187,7 @@ track_manager_update :: proc(manager: ^Track_Manager) {
         })
     }
 
-    // Poll for any new tracks and add them to selected sections.
+    // Poll for any new tracks and add them to selected groups.
 
     all_tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
     track_count := reaper.CountTracks(manager.project)
@@ -195,7 +195,7 @@ track_manager_update :: proc(manager: ^Track_Manager) {
         track := reaper.GetTrack(manager.project, i)
         if !slice.contains(manager.all_tracks[:], track) {
             for group in manager.groups {
-                if group.is_selected && group.kind == .Section && !slice.contains(group.tracks[:], track) {
+                if group.is_selected && !slice.contains(group.tracks[:], track) {
                     append(&group.tracks, track)
                 }
             }
