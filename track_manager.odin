@@ -5,6 +5,12 @@ import "core:strings"
 import "core:strconv"
 import "reaper"
 
+
+
+// Automatically add new tracks to selected sections?
+
+
+
 //==========================================================================
 // Global State
 //==========================================================================
@@ -550,8 +556,8 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
                 }
             }
 
-            track_is_visible := reaper_track_is_visible(track)
-            track_should_be_visible := false
+            track_should_be_visible := true
+
             if at_least_one_section_is_selected {
                 if at_least_one_group_is_selected {
                     track_should_be_visible = track_is_in_selected_group && track_is_in_selected_section
@@ -559,15 +565,30 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
                     track_should_be_visible = track_is_in_selected_section
                 }
             } else {
-                track_should_be_visible = track_is_in_selected_group
+                if at_least_one_group_is_selected {
+                    track_should_be_visible = track_is_in_selected_group
+                }
+            }
+
+            track_is_visible := reaper_track_is_visible(track)
+
+            set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
+                reaper_set_track_and_children_visible(track, visible)
+                if visible {
+                    parent := reaper.GetParentTrack(track)
+                    for parent != nil {
+                        reaper_set_track_visible(parent, true)
+                        parent = reaper.GetParentTrack(parent)
+                    }
+                }
             }
 
             if track_should_be_visible && !track_is_visible {
-                reaper_set_track_visible(track, true)
+                set_track_visible(track, true)
                 reaper.MarkProjectDirty(manager.project)
 
             } else if !track_should_be_visible && track_is_visible {
-                reaper_set_track_visible(track, false)
+                set_track_visible(track, false)
 
                 // Unselect tracks that are hidden by the manager.
                 reaper.SetTrackSelected(track, false)

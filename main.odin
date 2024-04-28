@@ -42,6 +42,15 @@ update :: proc() {
     manager := get_track_manager(project)
     if window_update(&track_manager_window) {
         track_manager_update(manager)
+
+        // if key_pressed(.F) {
+        //     track := reaper.GetSelectedTrack(nil, 0)
+        //     reaper_set_track_and_children_visible(track, true)
+        // }
+        // if key_pressed(.G) {
+        //     track := reaper.GetSelectedTrack(nil, 0)
+        //     reaper_set_track_and_children_visible(track, false)
+        // }
     }
 
     reaper.PreventUIRefresh(-1)
@@ -120,16 +129,20 @@ keep_if_user_data :: proc(array: ^[dynamic]$T, user_data: $D, should_keep: proc(
     resize(array, keep_position)
 }
 
+println :: proc(args: ..any, sep := " ") {
+    msg := fmt.tprintln(..args, sep = sep)
+    reaper.ShowConsoleMsg(strings.clone_to_cstring(msg, context.temp_allocator))
+}
+
+printfln :: proc(format: string, args: ..any) {
+    msg := fmt.tprintfln(format, ..args)
+    reaper.ShowConsoleMsg(strings.clone_to_cstring(msg, context.temp_allocator))
+}
+
 reaper_window_init :: proc(window: ^Window, rectangle: Rectangle) {
     window_init(window, rectangle)
     window.child_kind = .Transient
     window.parent_handle = plugin_info.hwnd_main
-}
-
-reaper_print :: proc(format: string, args: ..any) {
-    msg := fmt.tprintf(format, ..args)
-    msg_with_newline := strings.concatenate({strings.trim_null(cast(string)msg[:]), "\n"}, context.temp_allocator)
-    reaper.ShowConsoleMsg(strings.clone_to_cstring(msg_with_newline, context.temp_allocator))
 }
 
 reaper_format_f32 :: proc(value: f32) -> string {
@@ -172,6 +185,21 @@ reaper_set_track_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", visible ? 1 : 0)
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", visible ? 1 : 0)
     reaper.TrackList_AdjustWindows(false)
+}
+
+reaper_set_track_and_children_visible :: proc(track: ^reaper.MediaTrack, visible: bool) {
+    reaper_set_track_visible(track, visible)
+
+    track := track
+    current_depth := reaper.GetMediaTrackInfo_Value(track, "I_FOLDERDEPTH")
+
+    for current_depth > 0 {
+        next_track_index := i32(reaper.GetMediaTrackInfo_Value(track, "IP_TRACKNUMBER"))
+        if next_track_index <= 0 do return
+        track = reaper.GetTrack(nil, next_track_index)
+        reaper_set_track_visible(track, visible)
+        current_depth += reaper.GetMediaTrackInfo_Value(track, "I_FOLDERDEPTH")
+    }
 }
 
 //==========================================================================
