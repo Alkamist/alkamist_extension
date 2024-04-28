@@ -194,27 +194,27 @@ backend_activate_gl_context :: proc(window: ^Window) {
     pugl.EnterContext(window.view)
 }
 
-// backend_window_native_handle :: proc(window: ^Window) -> Window_Native_Handle {
-//     return cast(rawptr)pugl.GetNativeView(window.view)
-// }
+backend_window_native_handle :: proc(window: ^Window) -> Window_Native_Handle {
+    return cast(rawptr)pugl.GetNativeView(window.view)
+}
 
-// backend_show_window :: proc(window: ^Window) {
-//     pugl.Show(window.view, .RAISE)
-// }
+backend_show_window :: proc(window: ^Window) {
+    pugl.Show(window.view, .RAISE)
+}
 
-// backend_hide_window :: proc(window: ^Window) {
-//     pugl.Hide(window.view)
-// }
+backend_hide_window :: proc(window: ^Window) {
+    pugl.Hide(window.view)
+}
 
-// backend_set_window_position :: proc(window: ^Window, position: Vector2) {
-//     pugl.SetPosition(window.view, i32(position.x), i32(position.y))
-//     pugl.EnterContext(window.view)
-// }
+backend_set_window_position :: proc(window: ^Window, position: Vector2) {
+    pugl.SetPosition(window.view, i32(position.x), i32(position.y))
+    pugl.EnterContext(window.view)
+}
 
-// backend_set_window_size :: proc(window: ^Window, size: Vector2) {
-//     pugl.SetSize(window.view, c.uint(size.x), c.uint(size.y))
-//     pugl.EnterContext(window.view)
-// }
+backend_set_window_size :: proc(window: ^Window, size: Vector2) {
+    pugl.SetSize(window.view, c.uint(size.x), c.uint(size.y))
+    pugl.EnterContext(window.view)
+}
 
 backend_set_mouse_cursor_style :: proc(style: Mouse_Cursor_Style) {
     pugl.SetCursor(current_window().view, _cursor_style_to_pugl_cursor(style))
@@ -375,8 +375,16 @@ _pugl_event_proc :: proc "c" (view: ^pugl.View, event: ^pugl.Event) -> pugl.Stat
 
     case .CONFIGURE:
         event := event.configure
-        input_window_move(window, {f32(event.x), f32(event.y)})
-        input_window_resize(window, {f32(event.width), f32(event.height)})
+
+        position := Vector2{f32(event.x), f32(event.y)}
+        input_window_move(window, position)
+
+        size := Vector2{f32(event.width), f32(event.height)}
+        refresh := size != window.actual_rectangle.size
+        input_window_resize(window, size)
+        if refresh {
+            gui_update(false)
+        }
 
     case .POINTER_IN:
         input_mouse_enter(window)

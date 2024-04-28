@@ -86,10 +86,12 @@ Keyboard_Key :: enum {
 
 input_window_move :: proc(window: ^Window, position: Vector2) {
     window.position = position
+    window.actual_rectangle.position = position
 }
 
 input_window_resize :: proc(window: ^Window, size: Vector2) {
     window.size = size
+    window.actual_rectangle.size = size
 }
 
 input_gain_focus :: proc(window: ^Window) {
@@ -297,6 +299,7 @@ set_mouse_cursor_style :: proc(style: Mouse_Cursor_Style) {
 
 Window_Base :: struct {
     using rectangle: Rectangle,
+    actual_rectangle: Rectangle,
 
     mouse_position: Vector2,
     previous_mouse_position: Vector2,
@@ -350,6 +353,7 @@ current_window :: proc() -> ^Window {
 window_init :: proc(window: ^Window, rectangle: Rectangle) {
     window.content_scale = {1, 1}
     window.rectangle = rectangle
+    window.is_first_frame = true
     backend_window_init(window, rectangle)
 }
 
@@ -378,6 +382,7 @@ window_begin :: proc(window: ^Window) -> bool {
     clear(&window.child_windows)
 
     if window.is_first_frame {
+        window.actual_rectangle = window.rectangle
         window.previous_mouse_position = window.mouse_position
     }
 
@@ -427,6 +432,15 @@ window_end :: proc() {
     clear(&window.key_repeats)
     clear(&window.key_releases)
     strings.builder_reset(&window.text_input)
+
+    if window.position != window.actual_rectangle.position {
+        backend_set_window_position(window, window.position)
+    }
+
+    if window.size != window.actual_rectangle.size {
+        window.actual_rectangle.size = window.size
+        backend_set_window_size(window, window.size)
+    }
 
     if window.should_open {
         _window_open(window)
