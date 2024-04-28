@@ -5,12 +5,6 @@ import "core:strings"
 import "core:strconv"
 import "reaper"
 
-
-
-// Automatically add new tracks to selected sections?
-
-
-
 //==========================================================================
 // Global State
 //==========================================================================
@@ -124,6 +118,7 @@ Track_Manager_State :: enum {
 
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
+    all_tracks: [dynamic]^reaper.MediaTrack,
     selected_tracks: [dynamic]^reaper.MediaTrack,
 
     state: Track_Manager_State,
@@ -192,11 +187,31 @@ track_manager_update :: proc(manager: ^Track_Manager) {
         })
     }
 
+    // Poll for any new tracks and add them to selected sections.
+
+    all_tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
+    track_count := reaper.CountTracks(manager.project)
+    for i in 0 ..< track_count {
+        track := reaper.GetTrack(manager.project, i)
+        if !slice.contains(manager.all_tracks[:], track) {
+            for group in manager.groups {
+                if group.is_selected && group.kind == .Section && !slice.contains(group.tracks[:], track) {
+                    append(&group.tracks, track)
+                }
+            }
+        }
+        append(&all_tracks, track)
+    }
+    clear(&manager.all_tracks)
+    for track in all_tracks {
+        append(&manager.all_tracks, track)
+    }
+
     // Update selected tracks.
 
     manager.selected_tracks = make([dynamic]^reaper.MediaTrack, context.temp_allocator)
-    count := reaper.CountSelectedTracks(manager.project)
-    for i in 0 ..< count {
+    selected_track_count := reaper.CountSelectedTracks(manager.project)
+    for i in 0 ..< selected_track_count {
         append(&manager.selected_tracks, reaper.GetSelectedTrack(manager.project, i))
     }
 
