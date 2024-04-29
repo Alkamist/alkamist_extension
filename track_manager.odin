@@ -130,7 +130,7 @@ Track_Manager_State :: enum {
 
 Track_Manager :: struct {
     project: ^reaper.ReaProject,
-    // all_tracks: [dynamic]^reaper.MediaTrack,
+    all_tracks: [dynamic]^reaper.MediaTrack,
     selected_tracks: [dynamic]^reaper.MediaTrack,
 
     state: Track_Manager_State,
@@ -174,7 +174,7 @@ track_manager_destroy :: proc(manager: ^Track_Manager) {
         free(group)
     }
     delete(manager.groups)
-    // delete(manager.all_tracks)
+    delete(manager.all_tracks)
 }
 
 track_manager_reset :: proc(manager: ^Track_Manager) {
@@ -184,6 +184,29 @@ track_manager_reset :: proc(manager: ^Track_Manager) {
         free(group)
     }
     clear(&manager.groups)
+}
+
+track_manager_poll_for_new_tracks :: proc(manager: ^Track_Manager) {
+    all_tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
+    track_count := reaper.CountTracks(manager.project)
+
+    for i in 0 ..< track_count {
+        track := reaper.GetTrack(manager.project, i)
+        if !slice.contains(manager.all_tracks[:], track) {
+            for group in manager.groups {
+                if group.is_selected && group.kind == .Section && !slice.contains(group.tracks[:], track) {
+                    append(&group.tracks, track)
+                }
+            }
+        }
+        append(&all_tracks, track)
+    }
+
+    clear(&manager.all_tracks)
+
+    for track in all_tracks {
+        append(&manager.all_tracks, track)
+    }
 }
 
 track_manager_update :: proc(manager: ^Track_Manager) {
@@ -197,26 +220,6 @@ track_manager_update :: proc(manager: ^Track_Manager) {
             return reaper.ValidatePtr2(manager.project, track, "MediaTrack*")
         })
     }
-
-    // Poll for any new tracks and add them to selected groups.
-
-    // all_tracks := make([dynamic]^reaper.MediaTrack, context.temp_allocator)
-    // track_count := reaper.CountTracks(manager.project)
-    // for i in 0 ..< track_count {
-    //     track := reaper.GetTrack(manager.project, i)
-    //     if !slice.contains(manager.all_tracks[:], track) {
-    //         for group in manager.groups {
-    //             if group.is_selected && !slice.contains(group.tracks[:], track) {
-    //                 append(&group.tracks, track)
-    //             }
-    //         }
-    //     }
-    //     append(&all_tracks, track)
-    // }
-    // clear(&manager.all_tracks)
-    // for track in all_tracks {
-    //     append(&manager.all_tracks, track)
-    // }
 
     // Update selected tracks.
 

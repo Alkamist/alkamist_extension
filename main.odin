@@ -40,6 +40,7 @@ update :: proc() {
     project := reaper.EnumProjects(-1, nil, 0)
 
     manager := get_track_manager(project)
+    track_manager_poll_for_new_tracks(manager)
     if window_update(&track_manager_window) {
         track_manager_update(manager)
     }
