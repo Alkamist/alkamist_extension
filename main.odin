@@ -34,6 +34,13 @@ init :: proc() {
     })
 }
 
+shutdown :: proc() {
+    for _, manager in track_managers {
+        track_manager_destroy(manager)
+    }
+    window_destroy(&track_manager_window)
+}
+
 update :: proc() {
     reaper.PreventUIRefresh(1)
 

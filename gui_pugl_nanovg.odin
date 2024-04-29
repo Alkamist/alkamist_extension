@@ -4,7 +4,6 @@ import "base:runtime"
 import "base:intrinsics"
 import "core:c"
 import "core:fmt"
-import "core:time"
 import "core:strings"
 import utf8 "core:unicode/utf8"
 import gl "vendor:OpenGL"
@@ -198,20 +197,20 @@ backend_window_native_handle :: proc(window: ^Window) -> Window_Native_Handle {
     return cast(rawptr)pugl.GetNativeView(window.view)
 }
 
-backend_show_window :: proc(window: ^Window) {
+backend_window_show :: proc(window: ^Window) {
     pugl.Show(window.view, .RAISE)
 }
 
-backend_hide_window :: proc(window: ^Window) {
+backend_window_hide :: proc(window: ^Window) {
     pugl.Hide(window.view)
 }
 
-backend_set_window_position :: proc(window: ^Window, position: Vector2) {
+backend_window_set_position :: proc(window: ^Window, position: Vector2) {
     pugl.SetPosition(window.view, i32(position.x), i32(position.y))
     pugl.EnterContext(window.view)
 }
 
-backend_set_window_size :: proc(window: ^Window, size: Vector2) {
+backend_window_set_size :: proc(window: ^Window, size: Vector2) {
     pugl.SetSize(window.view, c.uint(size.x), c.uint(size.y))
     pugl.EnterContext(window.view)
 }
