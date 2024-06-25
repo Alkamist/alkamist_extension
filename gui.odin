@@ -1555,8 +1555,6 @@ button_base_update :: proc(
             button.clicked = true
         }
     }
-
-    return
 }
 
 invisible_button_update :: proc(
@@ -1570,7 +1568,6 @@ invisible_button_update :: proc(
         mouse_pressed(mouse_button),
         mouse_released(mouse_button),
     )
-    return
 }
 
 button_update :: proc(
@@ -1590,8 +1587,6 @@ button_update :: proc(
     } else if mouse_hover() == button.id {
         fill_path(path, {1, 1, 1, 0.05})
     }
-
-    return
 }
 
 //==========================================================================
