@@ -1,21 +1,35 @@
 package main
 
+import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:slice"
 import "core:strings"
 import "core:strconv"
 import "core:unicode"
-import "core:runtime"
 import "reaper"
 
 main_context: runtime.Context
 plugin_info: ^reaper.plugin_info_t
 
+gui_event :: proc(window: ^Window, event: Gui_Event) {
+    #partial switch event in event {
+    case Gui_Event_Loop_Timer: update()
+    case Gui_Event_Mouse_Move: update()
+    case Gui_Event_Mouse_Press: update()
+    case Gui_Event_Mouse_Release: update()
+    case Gui_Event_Mouse_Scroll: update()
+    case Gui_Event_Key_Press: update()
+    case Gui_Event_Key_Release: update()
+    case Gui_Event_Rune_Input: update()
+    }
+}
+
 init :: proc() {
     plugin_info.Register("timer", cast(rawptr)proc "c" () {
         context = main_context
-        gui_update()
+        poll_window_events()
+        update()
         if reaper_save_project_requested {
             reaper.Main_OnCommandEx(40026, 0, nil)
             reaper_save_project_requested = false
@@ -26,11 +40,10 @@ init :: proc() {
     reaper_window_init(&track_manager_window, {{100, 100}, {400, 300}})
     track_manager_load_window_position_and_size()
     track_manager_window.title = "Alkamist Track Manager"
-    track_manager_window.should_open = false
-    track_manager_window.background_color = {0.2, 0.2, 0.2, 1}
+    track_manager_window.open_requested = false
 
     reaper_add_action("Alkamist: Track manager", "ALKAMIST_TRACK_MANAGER", proc() {
-        track_manager_window.should_open = true
+        track_manager_window.open_requested = true
     })
 }
 
@@ -49,6 +62,7 @@ update :: proc() {
     manager := get_track_manager(project)
     track_manager_update_active_group_tracks(manager)
     if window_update(&track_manager_window) {
+        clear_background({0.2, 0.2, 0.2, 1})
         track_manager_update(manager)
     }
 
@@ -391,10 +405,11 @@ ReaperPluginEntry :: proc "c" (hInst: rawptr, rec: ^reaper.plugin_info_t) -> c.i
     if rec == nil do return 0
 
     plugin_info = rec
+
     reaper.load_api_functions(plugin_info)
     plugin_info.Register("hookcommand", cast(rawptr)_reaper_hook_command)
 
-    gui_startup()
+    init()
 
     return 1
 }
