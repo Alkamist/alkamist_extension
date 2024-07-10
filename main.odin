@@ -14,6 +14,7 @@ plugin_info: ^reaper.plugin_info_t
 
 gui_event :: proc(window: ^Window, event: Gui_Event) {
     #partial switch event in event {
+    case Gui_Event_Close_Button_Pressed: window.should_close = true
     case Gui_Event_Loop_Timer: update()
     case Gui_Event_Mouse_Move: update()
     case Gui_Event_Mouse_Press: update()
@@ -40,10 +41,9 @@ init :: proc() {
     reaper_window_init(&track_manager_window, {{100, 100}, {400, 300}})
     track_manager_load_window_position_and_size()
     track_manager_window.title = "Alkamist Track Manager"
-    track_manager_window.open_requested = false
 
     reaper_add_action("Alkamist: Track manager", "ALKAMIST_TRACK_MANAGER", proc() {
-        track_manager_window.open_requested = true
+        track_manager_window.should_open = true
     })
 }
 

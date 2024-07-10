@@ -472,8 +472,10 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
 
     // Play the project when pressing space bar.
 
-    if key_pressed(.Space) {
-        reaper.Main_OnCommandEx(40044, 0, nil)
+    for key in key_presses() {
+        if key == .Space {
+            reaper.Main_OnCommandEx(40044, 0, nil)
+        }
     }
 
     // Save the project when ctrl + s is pressed.
@@ -484,7 +486,7 @@ track_manager_editing :: proc(manager: ^Track_Manager, rectangle: Rectangle) {
     }
 
     if key_pressed(.Escape) {
-        track_manager_window.close_requested = true
+        track_manager_window.should_close = true
     }
 }
 
