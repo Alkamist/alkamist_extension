@@ -3,11 +3,14 @@ package main
 import "base:runtime"
 import "core:c"
 import "core:fmt"
+import "core:time"
 import "core:slice"
 import "core:strings"
 import "core:strconv"
 import "core:unicode"
 import "reaper"
+
+MAX_UPDATE_FPS :: 240.0
 
 main_context: runtime.Context
 plugin_info: ^reaper.plugin_info_t
@@ -55,6 +58,13 @@ shutdown :: proc() {
 }
 
 update :: proc() {
+    @(static) tick_last_frame: time.Tick
+    if time.duration_seconds(time.tick_since(tick_last_frame)) > 1.0 / MAX_UPDATE_FPS {
+        tick_last_frame = time.tick_now()
+    } else {
+        return
+    }
+
     reaper.PreventUIRefresh(1)
 
     project := reaper.EnumProjects(-1, nil, 0)
